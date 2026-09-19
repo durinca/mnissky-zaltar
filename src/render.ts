@@ -231,7 +231,7 @@ function pcReadingEl(sec: PcSection, resp: PcResp | undefined, label: string): H
   if (sec.title) w.append(h('p', { class: 'pc-title', text: sec.title }));
   w.append(pcLines(sec.lines));
   if (resp && (resp.r.length || resp.v.length)) {
-    w.append(h('p', { class: 'sub2', text: 'Responzórium' }));
+    w.append(h('h2', { class: 'sec', text: 'Responzórium' }));
     if (resp.ref) w.append(h('p', { class: 'ref', text: resp.ref }));
     const box = h('div', { class: 'plain' });
     resp.r.forEach((t) => box.append(h('p', { class: 'para', 'data-tts': t.replace(/ \*/g, '') }, rub('R/ '), t)));
@@ -277,7 +277,7 @@ export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFrag
           const o = b.options[i];
           const w = h('div', { class: 'reading' });
           w.append(h('p', { class: 'ref', text: o.ref }), h('p', { class: 'para', 'data-tts': o.text, text: o.text }));
-          if (o.resp?.length) { w.append(h('p', { class: 'sub2', text: 'Responzórium' }), textLines(o.resp.map((l) => l.replace(/\s+/g, ' ').trim()))); }
+          if (o.resp?.length) { w.append(h('h2', { class: 'sec', text: 'Responzórium' }), textLines(o.resp.map((l) => l.replace(/\s+/g, ' ').trim()))); }
           return w;
         }, 'reading-tabs'));
         break;
