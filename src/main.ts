@@ -1,6 +1,6 @@
 import './style.css';
 import { assemble } from './assemble';
-import { addDays, dayInfo, formatDate, hourAt, hoursOf, HOUR_LABEL, HOUR_SHORT, isoOf, mk, parseIso, roman, type DayInfo, type HourId } from './calendar';
+import { MONTH_NOM, addDays, dayInfo, formatDate, hourAt, hoursOf, HOUR_LABEL, HOUR_SHORT, isoOf, mk, parseIso, roman, type DayInfo, type HourId } from './calendar';
 import { loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
 import { renderBlocks, type Section } from './render';
 import { apply, load, save, type Settings } from './settings';
@@ -52,7 +52,6 @@ async function show(replace = false): Promise<void> {
 
   // header
   $('datetxt').textContent = formatDate(date);
-  ($('datein') as HTMLInputElement).value = isoOf(date);
   const week = info.psalterWeek;
   $('badge').textContent = `${eveningNext ? 'Nedeľa – ' : ''}${info.label} · rok ${info.cycle} · žaltár ${roman(week)}. týždeň`;
   $('today').hidden = isoOf(date) === todayIso;
@@ -73,7 +72,7 @@ async function show(replace = false): Promise<void> {
     const raw = day.hours[hour];
     if (!raw) throw new Error(`Chýba text: ${hour}`);
     const proper = info.season === 'ordinary' && info.sundayN ? ordinary[String(info.sundayN)] : undefined;
-    const blocks = assemble(raw, { info, hour, proper, festaInv: festa });
+    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both });
     const r = renderBlocks(blocks, settings);
     sections = r.sections;
     const page = h('article', { class: 'hour' });
@@ -115,10 +114,7 @@ function go(delta: number): void {
 // ---------- events ----------
 $('prev').addEventListener('click', () => go(-1));
 $('next').addEventListener('click', () => go(1));
-$('datein').addEventListener('change', (e) => {
-  const d = parseIso((e.target as HTMLInputElement).value);
-  if (d) { date = d; void show(false); }
-});
+$('datebtn').addEventListener('click', openCalendar);
 $('today').addEventListener('click', () => {
   const n = new Date();
   date = mk(n.getFullYear(), n.getMonth(), n.getDate());
@@ -153,6 +149,37 @@ $('jump').addEventListener('click', () => {
   openSheet('Prejsť na', list);
 });
 
+function openCalendar(): void {
+  const view = { y: date.getFullYear(), m: date.getMonth() };
+  const box = h('div', { class: 'cal' });
+  const draw = (): void => {
+    const first = mk(view.y, view.m, 1);
+    const lead = (first.getDay() + 6) % 7; // Monday first
+    const days = new Date(view.y, view.m + 1, 0).getDate();
+    const head = h('div', { class: 'cal-head' });
+    const nav = (label: string, dm: number, aria: string) => { const b = h('button', { type: 'button', class: 'ico', text: label, 'aria-label': aria }); b.addEventListener('click', () => { const d = new Date(view.y, view.m + dm, 1); view.y = d.getFullYear(); view.m = d.getMonth(); draw(); }); return b; };
+    head.append(nav('‹', -1, 'Predchádzajúci mesiac'), h('strong', { text: `${MONTH_NOM[view.m]} ${view.y}` }), nav('›', 1, 'Nasledujúci mesiac'));
+    const grid = h('div', { class: 'cal-grid' });
+    for (const d of ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne']) grid.append(h('span', { class: 'cal-dow', text: d }));
+    for (let i = 0; i < lead; i++) grid.append(h('span'));
+    const today = isoOf(new Date());
+    for (let d = 1; d <= days; d++) {
+      const dt = mk(view.y, view.m, d), iso = isoOf(dt);
+      const b = h('button', { type: 'button', class: `cal-day${dt.getDay() === 0 ? ' sun' : ''}${iso === today ? ' today' : ''}${iso === isoOf(date) ? ' sel' : ''}`, text: String(d) });
+      b.addEventListener('click', () => { date = dt; closeSheet(); void show(false); });
+      grid.append(b);
+    }
+    const foot = h('div', { class: 'cal-foot' });
+    const tb = h('button', { type: 'button', class: 'btn', text: 'Dnes' });
+    tb.addEventListener('click', () => $('today').click());
+    tb.addEventListener('click', closeSheet);
+    foot.append(tb);
+    box.replaceChildren(head, grid, foot);
+  };
+  draw();
+  openSheet('Vybrať deň', box);
+}
+
 function segmented<T extends string | number | boolean>(opts: [string, T][], value: T, on: (v: T) => void): HTMLElement {
   const bar = h('div', { class: 'tabbar' });
   for (const [label, v] of opts) {
@@ -177,6 +204,7 @@ $('cfg').addEventListener('click', () => {
   box.append(row('Veľkosť písma', size));
   box.append(row('Vzhľad', segmented<Settings['theme']>([['Auto', 'auto'], ['Svetlý', 'light'], ['Tmavý', 'dark']], settings.theme, (v) => { settings.theme = v; persist(); })));
   box.append(row('Latinčina (hymny a formuly)', segmented<boolean>([['Vypnutá', false], ['Zapnutá', true]], settings.latin, (v) => { settings.latin = v; persist(); void show(true); })));
+  box.append(row('Posvätné čítanie: nokturny', segmented<boolean>([['Jeden (podľa týždňa)', false], ['I. aj II.', true]], settings.both, (v) => { settings.both = v; persist(); void show(true); })));
   box.append(row('Nechať obrazovku zapnutú', segmented<boolean>([['Nie', false], ['Áno', true]], settings.wake, (v) => { settings.wake = v; persist(); void updateWake(); })));
   if (ttsSupported) {
     box.append(row('Rýchlosť čítania', segmented<number>([['Pomalá', 0.8], ['Bežná', 0.95], ['Rýchla', 1.15]], settings.rate, (v) => { settings.rate = v; speaker.rate = v; persist(); })));

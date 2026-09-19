@@ -12,6 +12,8 @@ export interface Ctx {
   proper?: SundayProper;
   /** invitatory psalm 94 from the solemnities appendix */
   festaInv?: Unit;
+  /** pray both the I. and II. nocturn (default: one of them, alternating by psalter week) */
+  bothNocturns?: boolean;
 }
 
 const SEASON_CODE: Record<string, string> = { advent: 'a', christmas: 'vi', lent: 'p', triduum: 'p', easter: 've', ordinary: '' };
@@ -25,6 +27,23 @@ export function fixAntiphon(text: string, season: DayInfo['season']): string {
     if (stripped) t = /[.!?:;]$/.test(stripped) ? stripped : stripped + '.';
   }
   return t;
+}
+
+/** Vigil: one nocturn at a time – I. in odd psalter weeks, II. in even ones; III. (Sunday canticles) always stays. */
+function pickNocturns(bs: Block[], week: number, both: boolean): Block[] {
+  const starts = bs.map((b, i) => (b.t === 'nokturn' ? i : -1)).filter((i) => i >= 0);
+  if (!starts.length) return bs;
+  const want = week % 2 === 1 ? 'I' : 'II';
+  const body: Block[] = [];
+  let tail: Block[] = [];
+  starts.forEach((st, k) => {
+    const seg = bs.slice(st, starts[k + 1] ?? bs.length);
+    const cut = seg.findIndex((b, i) => i > 0 && (b.t === 'hymn' || b.t === 'note' || b.t === 'closing'));
+    if (cut >= 0) tail = seg.slice(cut);
+    const n = (seg[0] as { n: string }).n;
+    if (both || n === 'III' || n === want) body.push(...(cut >= 0 ? seg.slice(0, cut) : seg));
+  });
+  return [...bs.slice(0, starts[0]), ...body, ...tail];
 }
 
 const defIndex = (n: number, week: number) => (n >= 4 ? (week - 1) % n : 0);
@@ -106,9 +125,11 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
           break;
         case 'versicles': {
           const code = SEASON_CODE[season];
-          let def = code ? b.options.findIndex((o) => o.season === code) : -1;
-          if (def < 0) def = Math.max(0, b.options.findIndex((o) => o.label === 'I'));
-          out.push({ ...b, def });
+          // seasonal verse if there is one, otherwise the ordinary-time verse: I. in odd, II. in even psalter weeks
+          let options = code ? b.options.filter((o) => o.season === code) : [];
+          if (!options.length) options = b.options.filter((o) => !o.season && o.label === (info.psalterWeek % 2 ? 'I' : 'II'));
+          if (!options.length) options = b.options.slice(0, 1);
+          out.push({ ...b, options, def: 0 });
           break;
         }
         default:
@@ -116,7 +137,7 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
       }
     }
   };
-  push(blocks);
+  push(hour === 'pc' ? pickNocturns(blocks, info.psalterWeek, !!ctx.bothNocturns) : blocks);
 
   // invitatory: offer Ps 94 as an alternative to the psalm of the day
   if (hour === 'inv' && ctx.festaInv) {

@@ -139,7 +139,7 @@ function textLines(lines: string[]): HTMLElement {
       if (i) p.append(h('br'));
       const t = clean(l);
       const m = /^(V\/?\.?|R\/?\.?|Ant\.)\s+(.*)$/.exec(t);
-      if (m) { p.append(rub(m[1].replace(/\.$/, '') + ' '), m[2]); } else p.append(t);
+      if (m) { p.append(rub(m[1].replace(/\/\.$/, '/') + ' '), m[2]); } else p.append(t);
     });
     box.append(p);
     para = [];

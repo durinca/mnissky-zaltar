@@ -25,7 +25,14 @@ export function docxLines(path) {
     text = text.normalize('NFC');
     const n = text.replace(/[\s\t\n]/g, '').length || 1;
     const meta = { i: ti / n, r: tr / n, b: tb / n };
-    for (const l of text.split('\n')) out.push({ text: l, ...meta });
+    const ppr = (p.match(/<w:pPr>[\s\S]*?<\/w:pPr>/) ?? [''])[0].replace(/<w:rPr>[\s\S]*?<\/w:rPr>/, '');
+    // 1.5 line spacing (or space after) marks the last line of a strophe/stanza; w:ind marks an indented continuation line
+    const sp = /<w:spacing[^>]*w:line="(\d+)"/.exec(ppr);
+    const af = /<w:spacing[^>]*w:after="(\d+)"/.exec(ppr);
+    const pb = (sp && +sp[1] >= 300) || (af && +af[1] >= 100) ? true : false;
+    const ind = /<w:ind[^>]*w:(firstLine|left)="[1-9]/.test(ppr);
+    const parts = text.split('\n');
+    parts.forEach((l, k) => out.push({ text: ind && l.trim() && !l.startsWith('\t') ? '\t' + l : l, ...meta, pb: pb && k === parts.length - 1 }));
   }
   return out;
 }

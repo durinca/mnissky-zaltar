@@ -3,10 +3,11 @@ export interface Settings {
   theme: 'auto' | 'light' | 'dark';
   latin: boolean;
   wake: boolean;
+  both: boolean; // both nocturns in the Vigil
   rate: number; // speech rate
 }
 const KEY = 'mz.settings.v1';
-export const defaults: Settings = { size: 19, theme: 'auto', latin: false, wake: false, rate: 0.95 };
+export const defaults: Settings = { size: 19, theme: 'auto', latin: false, wake: false, both: false, rate: 0.95 };
 
 export function load(): Settings {
   try {

@@ -99,7 +99,7 @@ function parseBlocks(lines) {
       }
       case 'hymn': {
         const body = trim(take(isMarker));
-        blocks.push({ t: 'hymn', title: mk.title ?? '', raw: body.map((x) => ({ text: norm(x.text) })) });
+        blocks.push({ t: 'hymn', title: mk.title ?? '', raw: body.flatMap((x) => (x.pb && x.t ? [{ text: norm(x.text) }, { text: '' }] : [{ text: norm(x.text) }])) });
         break;
       }
       case 'ant': {
@@ -195,6 +195,7 @@ function makePsalm(kind, hl, head, body) {
       if (last?.startsWith('#')) lines[lines.length - 1] = last + ' · ' + x.t;
       else lines.push('#' + x.t);
     } else lines.push(norm(x.text));
+    if (x.pb && x.t) lines.push('');
   }
   b.lines = lines;
   while (b.lines.length && !b.lines[0].trim()) b.lines.shift();
@@ -241,6 +242,26 @@ function splitHymn(raw) {
     if (/(^|\s)Amen\.?$/i.test(r)) { const n = note; flush(); note = n && !variants.length ? n : ''; }
   }
   flush();
+  // a variant may hold Slovak and Latin text back to back (no "Amen" between): split on language change
+  for (let vi = 0; vi < variants.length; vi++) {
+    const v = variants[vi];
+    const paras = [];
+    let cur = [];
+    for (const r of v.lines) { if (!r.trim()) { if (cur.length) paras.push(cur); cur = []; } else cur.push(r); }
+    if (cur.length) paras.push(cur);
+    const groups = [];
+    for (const p of paras) {
+      const isAmen = p.length === 1 && /^Amen\.?$/i.test(p[0]);
+      const L = isAmen ? null : lang(p);
+      const last = groups[groups.length - 1];
+      if (!last || (L && last.L && L !== last.L)) groups.push({ L, paras: [p] });
+      else { last.paras.push(p); last.L ??= L; }
+    }
+    if (groups.length > 1) {
+      variants.splice(vi, 1, ...groups.map((g, gi) => ({ note: gi === 0 ? v.note : '', lines: g.paras.flatMap((p) => [...p, '']) })));
+      vi += groups.length - 1;
+    }
+  }
   // stanzas
   const stanzas = (lines) => {
     const out = []; let s = { n: '', lines: [] };
