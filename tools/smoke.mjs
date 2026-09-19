@@ -22,7 +22,9 @@ const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
-const dates = ['2026-09-13', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19'];
+const dates = ['2026-09-13', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19',
+  // seasons: Advent, Dec 17-24, Christmas, Lent, Holy Week, Easter
+  '2026-12-01', '2026-11-29', '2026-12-20', '2026-12-24', '2026-12-30', '2027-01-03', '2027-01-09', '2027-02-10', '2027-02-14', '2027-03-22', '2027-03-25', '2027-03-28', '2027-04-01', '2027-04-14', '2027-05-05'];
 const HOURS = { 0: ['inv','pc','lauds','terce','sext','none','v2','komp'], 6: ['inv','pc','lauds','terce','sext','none','v1','komp1'] };
 let bad = 0, n = 0;
 for (const d of dates) {

@@ -16,7 +16,10 @@ Funguje offline, inštaluje sa na plochu telefónu a nepotrebuje server.
 - čítanie nahlas (Web Speech API, `sk-SK`)
 - plne offline po prvom otvorení (service worker)
 
-Vlastné časti sviatkov a slávností (ktoré v žaltári nie sú) aplikácia nedopĺňa – zobrazí upozornenie.
+- **Posvätné čítanie:** biblické a patristické čítanie s responzóriami z textov Breviára
+- **Adventné, vianočné, pôstne a veľkonočné obdobie:** hymny, krátke čítania, responzóriá, antifóny na Benediktus/Magnifikat, prosby a modlitby dňa z Breviára; antifóny k žalmom z talianskeho benediktínskeho breviára ([salmastro](https://github.com/durinca/salmastro-main)) preložené do slovenčiny (`data-src/antiphons-*.json`)
+
+Nedostatky: slávnosti a sviatky (vlastné žalmy), Svätý týždeň a Trojdnie sú doplnené len čiastočne.
 
 ## Vývoj
 
@@ -39,6 +42,8 @@ node tools/extract.mjs "cesta/k/Mnissky zaltar_v2.docx"
 
 Skript rozpozná hodinky, žalmy, antifóny (vrátane sezónnych `A./Vi./P./Ve. O.`), hymny (SK/LA), čítania, prosby a modlitby.
 Pôvodný `.docx` sa do repozitára nepridáva. Po oprave dokumentu stačí skript spustiť znova.
+
+Texty Breviára (`public/data/pc`, `public/data/proper`) vznikajú z rozbaleného `assets/include` v `.apk`: `node tools/extract-breviar.mjs`, `node tools/extract-proper.mjs`. Antifóny: `node tools/parse-salmastro.mjs salmodia.php` → `node tools/build-season-ant.mjs`.
 
 Ďalšie nástroje: `tools/dump.mjs <deň>` (prehľad štruktúry), `tools/smoke.mjs` (headless Chrome – otvorí každú hodinku),
 `tools/make-icons.mjs` (ikony).

@@ -15,7 +15,8 @@ export type ProperFile = Record<string, ProperSection>;
 
 /** candidate ids (first existing wins) for each part of one hour */
 export interface ProperSpec {
-  file: string;
+  /** one or several Breviár files; ids are looked up across all of them */
+  file: string | string[];
   hymn?: string[]; cit?: string[]; resp?: string[]; ant?: string[]; prosby?: string[]; prayer?: string[]; inv?: string[];
 }
 export interface Proper {
@@ -126,11 +127,34 @@ function lent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperSpe
   }
 }
 
+/** Easter season (vnokt = octave, vn1 = weeks 2–6, vn2 = weeks 6–7) */
+function easterSeason(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperSpec | undefined {
+  const dow = date.getDay(), Dn = D[dow], k = info.week ?? 1;
+  if (k >= 8) return undefined; // Pentecost itself
+  const file = ['vnokt', 'vn1', 'vn2'];
+  const both = (f: (n: string) => string): string[] => ['VN1', 'VN2'].map(f);
+  const sun = dow === 0;
+  const P = `${k}${Dn}`;
+  const prayer = [...both((n) => `${n}_MODLITBA${sun ? k + 'NE' : P}`), `VNOKT_MODLITBA${Dn}`];
+  switch (hour) {
+    case 'inv': return { file, inv: ['VN1_iANT1', 'VN2_iANT1', 'VNOKT_iANT1'] };
+    case 'lauds': return { file, hymn: ['VN1_rHYMNUS1', 'VN2_rHYMNUS', 'VN1_rHYMNUS2'], cit: [sun ? 'VN1_rNECIT' : `VN1_r${Dn}CIT`], resp: ['VN1_rRESP', 'VN2_rRESP'], ant: sun ? both((n) => `${n}_rBENEDIKTUS${k}NE${cycle}`) : [...both((n) => `${n}_rBENEDIKTUS${P}`), `VNOKT_rBENEDIKTUS${Dn}`], prosby: both((n) => `${n}_rPROSBY${P}`), prayer };
+    case 'v1': return { file, hymn: ['VN1_vHYMNUS1', 'VN2_vHYMNUS'], cit: ['VN1_vNECIT'], resp: ['VN1_vRESP'], ant: both((n) => `${n}_1MAGNIFIKAT${k}NE${cycle}`), prayer };
+    case 'v': case 'v2': return { file, hymn: ['VN1_vHYMNUS1', 'VN2_vHYMNUS'], cit: [sun ? 'VN1_vNECIT' : `VN1_v${Dn}CIT`], resp: ['VN1_vRESP', 'VN2_vRESP'], ant: sun ? both((n) => `${n}_vMAGNIFIKAT${k}NE${cycle}`) : [...both((n) => `${n}_vMAGNIFIKAT${P}`), `VNOKT_vMAGNIFIKAT${Dn}`], prosby: both((n) => `${n}_vPROSBY${P}`), prayer };
+    case 'terce': case 'sext': case 'none': {
+      const h = MINOR[hour]!;
+      return { file, hymn: [`VN1_${h}HYMNUS`], cit: [`VN1_${h}${Dn}CIT`], resp: [`VN1_${h}RESP`], prayer };
+    }
+    default: return undefined;
+  }
+}
+
 export function properSpec(date: Date, info: DayInfo, hour: HourId): ProperSpec | undefined {
   switch (info.season) {
     case 'advent': return advent(date, info, hour, info.cycle);
     case 'christmas': return christmas(date, info, hour);
     case 'lent': return lent(date, info, hour, info.cycle);
+    case 'easter': return easterSeason(date, info, hour, info.cycle);
     default: return undefined;
   }
 }
@@ -138,8 +162,9 @@ export function properSpec(date: Date, info: DayInfo, hour: HourId): ProperSpec 
 export async function resolveProper(date: Date, info: DayInfo, hour: HourId, load: (file: string) => Promise<ProperFile | undefined>): Promise<Proper | undefined> {
   const spec = properSpec(date, info, hour);
   if (!spec) return undefined;
-  const f = await load(spec.file).catch(() => undefined);
-  if (!f) return undefined;
+  const files = await Promise.all((Array.isArray(spec.file) ? spec.file : [spec.file]).map((n) => load(n).catch(() => undefined)));
+  const f: ProperFile = Object.assign({}, ...files.filter(Boolean));
+  if (!files.some(Boolean)) return undefined;
   const pick = <T extends ProperSection['type']>(ids: string[] | undefined, type: T): Extract<ProperSection, { type: T }> | undefined => {
     for (const id of ids ?? []) { const s = f[id]; if (s && s.type === type) return s as Extract<ProperSection, { type: T }>; }
     return undefined;

@@ -37,6 +37,14 @@ export function fixAntiphon(text: string, season: DayInfo['season']): string {
   return t;
 }
 
+/** A responsory may print its Easter version after a "Vo veľkonočnom období" line: keep only the version that applies (a bare page reference stays in Easter only). */
+function easterResp(resp: string[], easter: boolean): string[] {
+  const at = resp.findIndex((l) => /^\s*Vo veľkonočnom období/i.test(l));
+  if (at < 0) return resp;
+  if (/str\.\s*\d+/.test(resp[at])) return easter ? resp : resp.filter((_, i) => i !== at); // only a page reference, no text
+  return easter ? resp.slice(at + 1) : resp.slice(0, at);
+}
+
 /** Vigil: one nocturn at a time – I. in odd psalter weeks, II. in even ones; III. (Sunday canticles) always stays. */
 function pickNocturns(bs: Block[], week: number, both: boolean): Block[] {
   const starts = bs.map((b, i) => (b.t === 'nokturn' ? i : -1)).filter((i) => i >= 0);
@@ -113,7 +121,10 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
           out.push({ t: 'formula', id: 'closing', formulas: hour === 'komp' || hour === 'komp1' ? C.closingKomp : mainHour ? C.closingMain : C.closingMinor });
           break;
         case 'readings':
-          out.push({ ...b, options: [b.options[defIndex(b.options.length, info.psalterWeek)]], def: 0 });
+          {
+            const o = b.options[defIndex(b.options.length, info.psalterWeek)];
+            out.push({ ...b, options: [o.resp ? { ...o, resp: easterResp(o.resp, season === 'easter') } : o], def: 0 });
+          }
           break;
         case 'prosby':
           {

@@ -36,5 +36,11 @@ export function seasonAntiphon(all: SeasonAnt[], date: Date, info: DayInfo, hour
     if (!key) return undefined;
     return rows.find((e) => e.ev === key && (e.cases.length ? e.cases[e.cases.length - 1] === pos : pos === 1))?.t;
   }
+  if (info.season === 'easter') {
+    const k = info.week ?? 1;
+    const east = dow === 0 && k === 1 ? 'PAS' : dow === 0 && k === 3 ? 'PA3' : '';
+    if (!east) return undefined;
+    return rows.find((e) => e.ev === east && (e.cases.length ? e.cases[e.cases.length - 1] === pos : pos === 1))?.t;
+  }
   return undefined;
 }
