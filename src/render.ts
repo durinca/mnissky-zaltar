@@ -152,7 +152,7 @@ function textLines(lines: string[]): HTMLElement {
   };
   for (const l of lines) { if (!l.trim()) flush(); else para.push(l); }
   flush();
-  box.dataset.tts = lines.map(clean).filter(Boolean).join('\n').replace(/\b[VR]\/\.?\s/g, '');
+  box.dataset.tts = lines.map(clean).filter((t) => t && !/^Zakončenie/i.test(t)).join('\n').replace(/\b[VR]\/\.?\s/g, '');
   return box;
 }
 
