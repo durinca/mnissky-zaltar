@@ -42,3 +42,29 @@ describe('season psalm antiphons (translated)', () => {
     expect(seasonAntiphon(ants, d, dayInfo(d), 'lauds', 1)).toBeUndefined();
   });
 });
+
+describe.skipIf(!HAVE)('prayer of the day where the psalter only says "vlastná"', () => {
+  const prayer = async (y: number, m: number, dd: number, hour: Parameters<typeof resolveProper>[2]) => {
+    const d = mk(y, m - 1, dd);
+    return (await resolveProper(d, dayInfo(d), hour, load))?.prayer;
+  };
+  it('Office of Readings ends with the prayer of the day (same as Lauds)', async () => {
+    expect(await prayer(2026, 12, 1, 'pc')).toBeTruthy();
+    expect(await prayer(2026, 12, 1, 'pc')).toBe(await prayer(2026, 12, 1, 'lauds'));
+    expect(await prayer(2027, 2, 16, 'pc')).toBe(await prayer(2027, 2, 16, 'lauds'));
+  });
+  it('Palm Sunday, Holy Thursday, Good Friday', async () => {
+    for (const [y, m, d] of [[2026, 3, 29], [2026, 3, 30], [2026, 4, 2], [2026, 4, 3], [2026, 4, 4]]) expect(await prayer(y, m, d, 'lauds'), `${y}-${m}-${d}`).toBeTruthy();
+    // main.ts passes the Sunday itself for I. vespers
+    expect(await prayer(2026, 3, 29, 'v1')).toBe(await prayer(2026, 3, 29, 'lauds'));
+  });
+  it('Ascension, Pentecost, 4th Sunday of Advent (also I. vespers), 1 January', async () => {
+    expect(await prayer(2026, 5, 14, 'lauds')).toContain('nanebovstúpenie');
+    expect(await prayer(2026, 5, 24, 'lauds')).toContain('dnešnej slávnosti');
+    expect(await prayer(2026, 5, 24, 'v1')).toBeTruthy();
+    expect(await prayer(2026, 12, 20, 'v1')).toContain('anjelovho zvestovania');
+    expect(await prayer(2026, 12, 20, 'lauds')).toContain('anjelovho zvestovania');
+    expect(await prayer(2026, 1, 1, 'lauds')).toContain('aj v tomto novom roku');
+    expect(await prayer(2026, 1, 1, 'v')).not.toContain('novom roku');
+  });
+});

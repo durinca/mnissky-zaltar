@@ -1,7 +1,7 @@
 // Seasonal propers (Advent, Christmas, Lent, Easter) taken from the Slovak Breviár texts:
 // hymn, short reading + responsory, gospel-canticle antiphon, intercessions and prayer of the day.
 // Files: public/data/proper/<file>.json (see tools/extract-proper.mjs).
-import type { DayInfo, HourId } from './calendar';
+import { diffDays, easter, type DayInfo, type HourId } from './calendar';
 
 export interface ProperResp { who: 'R' | 'V'; t: string }
 export type ProperSection =
@@ -37,7 +37,9 @@ function advent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperS
   const m = date.getMonth() + 1, d = date.getDate(), dow = date.getDay(), Dn = D[dow];
   const late = m === 12 && d >= 17;
   const k = info.week ?? 1;
-  const file = late ? 'adv2' : 'adv1';
+  // a Sunday has its own prayer (in adv1), even when it falls on 17–24 December and the rest of the day is date-keyed (adv2)
+  const sunPrayer = dow === 0 ? [k === 4 ? 'ADV24NE_MODLITBA' : `ADV1${k}NE_MODLITBA`] : [];
+  const file = dow === 0 && late ? ['adv1', 'adv2'] : late ? 'adv2' : 'adv1';
   const P = late ? `ADV2${d}` : `ADV1${k}${Dn}`; // per-day prefix
   const S = late ? 'ADV2' : `ADV1${Dn}`; // weekday-generic prefix (readings are shared by weeks)
   const sunday = !late && dow === 0;
@@ -51,7 +53,7 @@ function advent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperS
         resp: [late ? `ADV2${d}r_RESP` : `${S}r_RESP`, late ? 'ADV2??r_RESP' : 'ADV1??r_RESP'],
         ant: sunday ? [`ADV1${k}NE_rBENEDIKTUS${cycle}`] : [late ? `ADV2${d}_rBENEDIKTUS` : `${P}_rBENEDIKTUS`],
         prosby: [`${P}${late ? 'r' : 'r'}_PROSBY`],
-        prayer: [late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
+        prayer: [...sunPrayer, late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
       };
     case 'v': case 'v2': case 'v1': {
       const first = hour === 'v1';
@@ -63,7 +65,7 @@ function advent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperS
         resp: first ? ['ADV1NEv_RESP'] : [late ? `ADV2${d}v_RESP` : `${S}v_RESP`, late ? 'ADV2??v_RESP' : 'ADV1??v_RESP'],
         ant: first ? [`ADV1${k}NE_1MAGNIFIKAT${cycle}`] : sunday ? [`ADV1${k}NE_vMAGNIFIKAT${cycle}`] : [late ? `ADV2${d}_vMAGNIFIKAT` : `${Pn}_vMAGNIFIKAT`],
         prosby: first ? [`ADV1${k}NE1_PROSBY`] : [late ? `ADV2${d}v_PROSBY` : `${Pn}v_PROSBY`],
-        prayer: first ? [`ADV1${k}NE_MODLITBA`] : [late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
+        prayer: first ? [...sunPrayer, `ADV1${k}NE_MODLITBA`] : [...sunPrayer, late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
       };
     }
     case 'terce': case 'sext': case 'none': {
@@ -73,7 +75,7 @@ function advent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperS
         hymn: [`${late ? 'ADV2' : 'ADV1'}${h}_HYMNUS`],
         cit: [late ? `ADV2${d}${h}_CIT` : `${S}${h}_CIT`],
         resp: [late ? `ADV2${d}${h}_RESP` : `${S}${h}_RESP`],
-        prayer: [late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
+        prayer: [...sunPrayer, late ? `ADV2${d}_MODLITBA` : `${P}_MODLITBA`],
       };
     }
     default: return undefined;
@@ -83,8 +85,12 @@ function advent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperS
 /** Christmas season: mostly date-keyed ids (vian1 = 25 Dec – 7 Jan, vian2 = 6–12 Jan) */
 function christmas(date: Date, info: DayInfo, hour: HourId): ProperSpec | undefined {
   const m = date.getMonth() + 1, d = date.getDate(), dow = date.getDay();
-  if (m === 1 && (d === 1 || d === 6)) return undefined; // solemnities with their own texts
+  if (m === 1 && d === 1) return prayerOnly(hour, 'pmb', hour === 'v' || hour === 'v2' ? ['PMB_vMODLITBA', 'PMB_rMODLITBA'] : ['PMB_rMODLITBA']); // solemnities with their own texts
+  if (m === 1 && d === 6) return prayerOnly(hour, 'ozz', ['OZZ_MODLITBA']);
+  // Baptism of the Lord / Holy Family: own prayer, the rest of the day as in the Christmas weekday texts
+  const feast = dow === 0 && ((m === 1 && d >= 7) || (m === 12 && d >= 26)) ? (m === 12 ? { f: 'svrod', id: 'SVROD_MODLITBA' } : { f: 'krst', id: 'KRST_MODLITBA' }) : undefined;
   const file = m === 1 && d >= 7 ? 'vian2' : 'vian1';
+  const files = feast ? [file, feast.f] : file;
   const F = file === 'vian2' ? 'VIAN2' : 'VIAN1';
   const day = m === 12 ? d : d; // day of month is the key
   if (dow === 0 && m === 1 && d <= 5) {
@@ -94,23 +100,23 @@ function christmas(date: Date, info: DayInfo, hour: HourId): ProperSpec | undefi
     if (hour === 'v1') return { file: 'vian1', hymn: ['VIAN1_vHYMNUS'], cit: [S + '1CIT'], resp: ['VIAN1_1RESP'], ant: [S + '1MAGNIFIKAT'], prosby: [S + '1PROSBY'], prayer: [S + 'MODLITBA'] };
     if (hour === 'v2') return { file: 'vian1', hymn: ['VIAN1_vHYMNUS'], cit: [S + 'vCIT'], resp: ['VIAN1_vRESP'], ant: [S + 'vMAGNIFIKAT'], prosby: [S + 'vPROSBY'], prayer: [S + 'MODLITBA'] };
   }
-  const prayer = [m === 12 && d === 25 ? 'VIAN1_rMODLITBA25' : `${F}_MODLITBA${day}`, `${F}_MODLITBA${day}`];
+  const prayer = [...(feast ? [feast.id] : []), m === 12 && d === 25 ? 'VIAN1_rMODLITBA25' : `${F}_MODLITBA${day}`, `${F}_MODLITBA${day}`];
   switch (hour) {
     case 'inv': return { file, inv: [file === 'vian2' ? 'VIAN2_iANT1' : 'OKTNAR_iANT1'] };
-    case 'lauds': return { file, hymn: [`${F}_rHYMNUS`], resp: [`${F}_rRESP`], ant: [`${F}_rBENEDIKTUS${day}`], prosby: [`${F}_rPROSBY${day}`], prayer };
-    case 'v': case 'v2': case 'v1': return { file, hymn: [`${F}_vHYMNUS`], resp: [`${F}_vRESP`], ant: [`${F}_vMAGNIFIKAT${day}`], prosby: [`${F}_vPROSBY${day}`], prayer: m === 12 && d === 25 ? ['VIAN1_vMODLITBA25'] : prayer };
+    case 'lauds': return { file: files, hymn: [`${F}_rHYMNUS`], resp: [`${F}_rRESP`], ant: [`${F}_rBENEDIKTUS${day}`], prosby: [`${F}_rPROSBY${day}`], prayer };
+    case 'v': case 'v2': case 'v1': return { file: files, hymn: [`${F}_vHYMNUS`], resp: [`${F}_vRESP`], ant: [`${F}_vMAGNIFIKAT${day}`], prosby: [`${F}_vPROSBY${day}`], prayer: m === 12 && d === 25 ? ['VIAN1_vMODLITBA25'] : prayer };
     case 'terce': case 'sext': case 'none': {
       const h = MINOR[hour]!;
-      return { file, hymn: [`${F}_${h}HYMNUS`], resp: [`${F}_${h}RESP`], prayer };
+      return { file: files, hymn: [`${F}_${h}HYMNUS`], resp: [`${F}_${h}RESP`], prayer };
     }
     default: return undefined;
   }
 }
 
-/** Lent, weeks 0–5 (post1); Holy Week is not filled in yet */
+/** Lent, weeks 0–5 (post1); Holy Week only has its prayers */
 function lent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperSpec | undefined {
   const dow = date.getDay(), Dn = D[dow], k = info.week ?? 0;
-  if (k >= 6 || info.season === 'triduum') return undefined;
+  if (k >= 6) return holyWeek(dow, hour);
   const sun = dow === 0;
   const P = `${k}${Dn}`;
   const prayer = [sun ? `POST1_MODLITBA${k}NE` : `POST1_MODLITBA${P}`];
@@ -130,7 +136,10 @@ function lent(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperSpe
 /** Easter season (vnokt = octave, vn1 = weeks 2–6, vn2 = weeks 6–7) */
 function easterSeason(date: Date, info: DayInfo, hour: HourId, cycle: string): ProperSpec | undefined {
   const dow = date.getDay(), Dn = D[dow], k = info.week ?? 1;
-  if (k >= 8) return undefined; // Pentecost itself
+  const sinceEaster = diffDays(date, easter(date.getFullYear()));
+  if (sinceEaster === 39) return prayerOnly(hour, 'nan', ['NAN_MODLITBA']);
+  if (sinceEaster === 49) return prayerOnly(hour, 'zds', hour === 'v1' ? ['ZDS_1MODLITBA'] : hour === 'sext' ? ['ZDS_2MODLITBA'] : ['ZDS_MODLITBA']);
+  if (k >= 8) return undefined;
   const file = ['vnokt', 'vn1', 'vn2'];
   const both = (f: (n: string) => string): string[] => ['VN1', 'VN2'].map(f);
   const sun = dow === 0;
@@ -149,8 +158,28 @@ function easterSeason(date: Date, info: DayInfo, hour: HourId, cycle: string): P
   }
 }
 
+/** hours that end with the prayer of the day */
+const PRAYER_HOURS = new Set<HourId>(['pc', 'lauds', 'terce', 'sext', 'none', 'v', 'v1', 'v2']);
+/** a day that only has its own prayer filled in (solemnities, Holy Week, Triduum) */
+function prayerOnly(hour: HourId, file: string, prayer: string[]): ProperSpec | undefined {
+  return PRAYER_HOURS.has(hour) ? { file, prayer } : undefined;
+}
+
+/** Holy Week (Palm Sunday – Holy Thursday) and the Easter Triduum: prayer of the day */
+function holyWeek(dow: number, hour: HourId): ProperSpec | undefined {
+  const Dn = D[dow];
+  if (dow === 5 || dow === 6) return prayerOnly(hour, 'vtroj', [`VTROJ_MODLITBA6${Dn}`]);
+  return prayerOnly(hour, 'vtyz', dow === 4 && (hour === 'v' || hour === 'v2') ? ['VTYZ_vMODLITBA6STV'] : [`VTYZ_MODLITBA6${Dn}`]);
+}
+
 export function properSpec(date: Date, info: DayInfo, hour: HourId): ProperSpec | undefined {
+  // the Office of Readings ends with the prayer of the day, the same as Lauds
+  if (hour === 'pc') {
+    const s = properSpec(date, info, 'lauds');
+    return s?.prayer ? { file: s.file, prayer: s.prayer } : undefined;
+  }
   switch (info.season) {
+    case 'triduum': return holyWeek(date.getDay(), hour);
     case 'advent': return advent(date, info, hour, info.cycle);
     case 'christmas': return christmas(date, info, hour);
     case 'lent': return lent(date, info, hour, info.cycle);

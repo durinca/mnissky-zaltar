@@ -62,7 +62,7 @@ function parse(id, body) {
   return { type: 'ant', text: text(body) };
 }
 
-const FILES = ['adv1', 'adv2', 'vian1', 'vian2', 'post1', 'vn1', 'vn2', 'vnokt', 'vtyz', 'vtroj', 'krst', 'svrod', 'pmb', 'ozz', 'troj'];
+const FILES = ['adv1', 'adv2', 'vian1', 'vian2', 'post1', 'vn1', 'vn2', 'vnokt', 'vtyz', 'vtroj', 'krst', 'svrod', 'pmb', 'ozz', 'troj', 'zds', 'nan'];
 let total = 0;
 for (const f of FILES) {
   let html;
@@ -74,6 +74,15 @@ for (const f of FILES) {
     if (!/_CIT|CIT$|_RESP|RESP$|HYMNUS|ANT|BENEDIKT|MAGNIFIK|PROSBY|MODLITBA/.test(id)) continue;
     map[id] = parse(id, m[2]);
     total++;
+  }
+  // the prayer of 1 January is one text with the vespers wording nested inside the lauds one (interleaved markers)
+  if (f === 'pmb') {
+    const m = /<!--\{BEGIN:PMB_vMODLITBA\}--><!--\{BEGIN:PMB_rMODLITBA\}-->([\s\S]*?)<!--\{END:PMB_rMODLITBA\}-->/.exec(html);
+    if (m) {
+      const nested = /<!--\{END:PMB_vMODLITBA\}-->[^<]*<!--\{BEGIN:PMB_vMODLITBA\}-->/; // " aj v tomto novom roku": lauds only
+      map.PMB_rMODLITBA = parse('PMB_MODLITBA', m[1].replace(nested, (x) => x.replace(/<[^>]*>/g, '')));
+      map.PMB_vMODLITBA = parse('PMB_MODLITBA', m[1].replace(nested, ''));
+    }
   }
   // responsories are sometimes wrapped with a "??" placeholder id (used for several days) – keep them too
   if (Object.keys(map).length) writeFileSync(new URL(`${f}.json`, OUT), JSON.stringify(map));

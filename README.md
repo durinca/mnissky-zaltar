@@ -19,7 +19,7 @@ Funguje offline, inštaluje sa na plochu telefónu a nepotrebuje server.
 - **Posvätné čítanie:** biblické a patristické čítanie s responzóriami z textov Breviára
 - **Adventné, vianočné, pôstne a veľkonočné obdobie:** hymny, krátke čítania, responzóriá, antifóny na Benediktus/Magnifikat, prosby a modlitby dňa z Breviára; antifóny k žalmom z talianskeho benediktínskeho breviára ([salmastro](https://github.com/durinca/salmastro-main)) preložené do slovenčiny (`data-src/antiphons-*.json`)
 
-Nedostatky: slávnosti a sviatky (vlastné žalmy), Svätý týždeň a Trojdnie sú doplnené len čiastočne.
+Nedostatky: slávnosti a sviatky (vlastné žalmy), Svätý týždeň a Trojdnie sú doplnené len čiastočne (zatiaľ len modlitba dňa; rovnako Nanebovstúpenie a Zoslanie Ducha Svätého).
 
 ## Vývoj
 
