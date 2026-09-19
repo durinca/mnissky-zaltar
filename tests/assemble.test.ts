@@ -48,8 +48,9 @@ describe('assemble', () => {
     const info = dayInfo(mk(2026, 8, 20)); // XXV. Sunday, year A
     const blocks = assemble(day(0).hours.lauds, { info, hour: 'lauds', proper: ordinary[String(info.sundayN)] });
     const ben = blocks.find((b) => b.t === 'unit' && b.body[0]?.id === 'benedictus') as Unit;
-    expect(ben.antOptions?.map((o) => o.label)).toEqual(['A', 'B', 'C']);
-    expect(ben.antDefault).toBe(0);
+    // only the antiphon of this year's cycle (A) is kept
+    expect(ben.antOptions).toBeUndefined();
+    expect(ben.antText).toBe(ordinary[String(info.sundayN)].lauds.find((x) => x.k === 'A')!.text);
     const prayers = blocks.find((b) => b.t === 'prayers');
     expect(prayers && prayers.t === 'prayers' && prayers.options[0].lines[0]).toContain('Všemohúci Bože');
   });
