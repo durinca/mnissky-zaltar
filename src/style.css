@@ -63,6 +63,7 @@ h4.sub { margin: 1.1rem 0 0.2rem; color: var(--rubric); font-family: var(--sans)
 .note { color: var(--muted); font-style: italic; font-size: 0.88em; margin: 0.6rem 0; }
 .or { text-align: center; color: var(--muted); font-family: var(--sans); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin: 1rem 0 0.2rem; }
 .rub { color: var(--rubric); }
+.rub-note { font-size: 0.8em; }
 .para { margin: 0.55rem 0; hyphens: auto; }
 
 /* antiphon */
