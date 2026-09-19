@@ -83,7 +83,7 @@ h4.sub { margin: 1.1rem 0 0.2rem; color: var(--rubric); font-family: var(--sans)
 .vn { display: inline-block; min-width: 1.4rem; margin-right: 0.2rem; text-indent: 0; color: var(--rubric); font-family: var(--sans); font-size: 0.62em; vertical-align: 0.35em; font-weight: 600; }
 .mk { color: var(--muted); }
 .ant-mk { color: var(--rubric); font-size: 0.75em; font-family: var(--sans); }
-.doxo { color: var(--muted); font-size: 0.8em; font-style: italic; margin: 0.5rem 0 0; }
+.vl.rub { color: var(--rubric); font-size: 0.85em; font-style: italic; }
 
 /* hymn */
 .hymn-text { margin: 0.5rem 0; }

@@ -226,64 +226,52 @@ function splitHymn(raw) {
       rows[rows.length - 1] = /-$/.test(prev) ? prev.slice(0, -1) + s : prev + ' ' + s;
     } else rows.push(s);
   }
-  const variants = [];
-  let note = '', cur = [];
-  const flush = () => {
-    const ls = cur.filter((x) => x.trim());
-    if (ls.length) variants.push({ note, lines: cur });
-    cur = []; note = '';
-  };
+  // Paragraphs in document order; Slovak and Latin texts alternate page by page.
+  // A hymn of each language ends at its "Amen"; the i-th Slovak hymn is paired with the i-th Latin one.
   const refs = [];
+  const H = { sk: [], la: [] };
+  const open = { sk: { note: '', paras: [] }, la: { note: '', paras: [] } };
+  let pendingNote = '', lastLang = 'sk', para = [];
+  const close = (L) => { if (open[L].paras.length) H[L].push(open[L]); open[L] = { note: '', paras: [] }; };
+  const addPara = (p) => {
+    if (p.length === 1 && /^Amen\.?$/i.test(p[0])) { open[lastLang].paras.push(p); close(lastLang); return; }
+    const L = lang(p);
+    lastLang = L;
+    if (L === 'sk' && !open.sk.paras.length && pendingNote) { open.sk.note = pendingNote; pendingNote = ''; }
+    open[L].paras.push(p);
+    if (/(^|\s)Amen\.?$/i.test(p[p.length - 1])) close(L);
+  };
+  const endPara = () => { if (para.length) addPara(para); para = []; };
   for (const r of rows) {
     const rm = r.match(/^(.*?),\s*str\.\s*\d+\.?$/);
-    if (rm) { refs.push(rm[1].trim()); continue; }
-    if (/^Na slávenie/i.test(r)) { flush(); note = r; continue; }
-    cur.push(r);
-    if (/(^|\s)Amen\.?$/i.test(r)) { const n = note; flush(); note = n && !variants.length ? n : ''; }
+    if (rm) { endPara(); refs.push(rm[1].trim()); continue; }
+    if (/^Na slávenie/i.test(r)) { endPara(); pendingNote = r; continue; }
+    if (!r.trim()) { endPara(); continue; }
+    para.push(r);
   }
-  flush();
-  // a variant may hold Slovak and Latin text back to back (no "Amen" between): split on language change
-  for (let vi = 0; vi < variants.length; vi++) {
-    const v = variants[vi];
-    const paras = [];
-    let cur = [];
-    for (const r of v.lines) { if (!r.trim()) { if (cur.length) paras.push(cur); cur = []; } else cur.push(r); }
-    if (cur.length) paras.push(cur);
-    const groups = [];
-    for (const p of paras) {
-      const isAmen = p.length === 1 && /^Amen\.?$/i.test(p[0]);
-      const L = isAmen ? null : lang(p);
-      const last = groups[groups.length - 1];
-      if (!last || (L && last.L && L !== last.L)) groups.push({ L, paras: [p] });
-      else { last.paras.push(p); last.L ??= L; }
-    }
-    if (groups.length > 1) {
-      variants.splice(vi, 1, ...groups.map((g, gi) => ({ note: gi === 0 ? v.note : '', lines: g.paras.flatMap((p) => [...p, '']) })));
-      vi += groups.length - 1;
-    }
-  }
+  endPara();
+  close('sk'); close('la');
   // stanzas
-  const stanzas = (lines) => {
-    const out = []; let s = { n: '', lines: [] };
-    const push = () => { if (s.lines.length) out.push(s); s = { n: '', lines: [] }; };
-    for (const r of lines) {
-      if (!r.trim()) { if (s.lines.length >= 2) push(); continue; }
-      const m = r.match(/^(\d+)\.\s*(.*)$/);
-      if (m) { push(); s = { n: m[1], lines: m[2] ? [m[2]] : [] }; }
-      else if (/^Amen\.?$/i.test(r) ) { push(); out.push({ n: '', lines: [r], amen: true }); }
-      else s.lines.push(r);
+  const stanzas = (paras) => {
+    const out = [];
+    for (const p of paras) {
+      if (p.length === 1 && /^Amen\.?$/i.test(p[0])) { out.push({ n: '', lines: [p[0]], amen: true }); continue; }
+      let s = { n: '', lines: [] };
+      for (const r of p) {
+        const m = r.match(/^(\d+)\.\s*(.*)$/);
+        if (m) { if (s.lines.length) out.push(s); s = { n: m[1], lines: m[2] ? [m[2]] : [] }; } else s.lines.push(r);
+      }
+      if (s.lines.length) out.push(s);
     }
-    push();
     return out;
   };
   const opts = [];
-  for (const v of variants) {
-    const L = lang(v.lines);
-    const st = stanzas(v.lines);
-    const last = opts[opts.length - 1];
-    if (L === 'la' && last && !last.la) last.la = st;
-    else if (L === 'la') opts.push({ note: v.note, la: st });
-    else opts.push({ note: v.note, sk: st });
+  const n = Math.max(H.sk.length, H.la.length);
+  for (let i = 0; i < n; i++) {
+    const o = { note: H.sk[i]?.note ?? '' };
+    if (H.sk[i]) o.sk = stanzas(H.sk[i].paras);
+    if (H.la[i]) o.la = stanzas(H.la[i].paras);
+    opts.push(o);
   }
   for (const ref of refs) { const o = opts.find((x) => !x.la && !x.laRef) ?? opts[opts.length - 1]; if (o) o.laRef = ref; }
   return opts;

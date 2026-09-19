@@ -101,10 +101,10 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
           out.push({ t: 'formula', id: 'closing', formulas: hour === 'komp' || hour === 'komp1' ? C.closingKomp : mainHour ? C.closingMain : C.closingMinor });
           break;
         case 'readings':
-          out.push({ ...b, def: defIndex(b.options.length, info.psalterWeek) });
+          out.push({ ...b, options: [b.options[defIndex(b.options.length, info.psalterWeek)]], def: 0 });
           break;
         case 'prosby':
-          out.push({ ...b, def: defIndex(b.options.length, info.psalterWeek) });
+          out.push({ ...b, options: [b.options[defIndex(b.options.length, info.psalterWeek)]], def: 0 });
           if (mainHour) out.push({ t: 'formula', id: 'ourfather', formulas: [C.ourFather] });
           break;
         case 'prayers': {
@@ -114,7 +114,7 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
             options = [{ n: '', label: `${roman(proper.n)}. nedeľa`, lines: [proper.prayer] }, ...options];
             def = 0;
           }
-          out.push({ ...b, options, def });
+          out.push({ ...b, options: [options[def]], def: 0 });
           break;
         }
         case 'note':

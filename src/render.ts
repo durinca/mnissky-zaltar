@@ -1,7 +1,6 @@
 // Blocks -> DOM. Elements carrying data-tts are read aloud by the speech player.
 import { roman } from './calendar';
 import type { Formula } from './common';
-import { doxology } from './common';
 import type { Settings } from './settings';
 import type { Block, Hymn, Psalm, Stanza, Unit } from './types';
 import { h, tabs } from './ui';
@@ -48,7 +47,7 @@ function psalmLines(lines: string[]): HTMLElement {
   for (const l of lines) {
     if (!l.trim()) { flush(); continue; }
     if (l.startsWith('#')) { flush(); box.append(h('h4', { class: 'sub', text: l.slice(1) })); continue; }
-    const p = h('p', { class: `vl i${indentOf(l)}` });
+    const p = h('p', { class: `vl i${indentOf(l)}${/^\s*Doxológia/i.test(l) ? ' rub' : ''}` });
     markup(clean(l), p);
     strophe.append(p);
   }
@@ -76,12 +75,7 @@ function psalmEl(p: Psalm): HTMLElement {
   box.append(head);
   if (p.epigraph) box.append(h('p', { class: 'epi', text: p.epigraph }));
   box.append(psalmLines(p.lines));
-  box.append(doxologyEl());
   return box;
-}
-
-function doxologyEl(): HTMLElement {
-  return h('p', { class: 'doxo', 'data-tts': doxology.map((l) => l.sk).join(' '), text: 'Sláva Otcu i Synu i Duchu Svätému. Ako bolo na počiatku, tak nech je i teraz i vždycky i na veky vekov. Amen.' });
 }
 
 function unitEl(u: Unit): HTMLElement {
