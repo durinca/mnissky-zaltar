@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5efe2" />
+  <meta name="description" content="Mníšsky týždenný žaltár – hodinky na každý deň, offline, pre mobil." />
+  <title>Mníšsky žaltár</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <script>
+    try { var t = JSON.parse(localStorage.getItem('mz.settings.v1') || '{}'); if (t.theme && t.theme !== 'auto') document.documentElement.setAttribute('data-theme', t.theme); if (t.size) document.documentElement.style.setProperty('--fs', t.size + 'px'); } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="top" id="top">
+    <div class="row">
+      <button id="prev" class="ico" aria-label="Predchádzajúci deň">‹</button>
+      <div class="date" id="datebtn">
+        <span id="datetxt">…</span>
+        <input type="date" id="datein" aria-label="Vybrať dátum" />
+      </div>
+      <button id="next" class="ico" aria-label="Nasledujúci deň">›</button>
+    </div>
+    <div class="badge" id="badge"></div>
+    <nav class="hours" id="hours" role="tablist" aria-label="Hodinky"></nav>
+  </header>
+
+  <main id="content" tabindex="-1"><p class="loading">Načítavam…</p></main>
+
+  <div class="dock" id="dock">
+    <button id="jump" class="dk" aria-label="Skočiť na časť">☰</button>
+    <button id="today" class="dk" hidden>Dnes</button>
+    <div class="player" id="player" hidden>
+      <button id="tts-prev" class="dk" aria-label="Späť">⏮</button>
+      <button id="tts-toggle" class="dk" aria-label="Pauza">⏸</button>
+      <button id="tts-next" class="dk" aria-label="Ďalej">⏭</button>
+      <button id="tts-stop" class="dk" aria-label="Zastaviť">⏹</button>
+    </div>
+    <button id="play" class="dk" aria-label="Čítať nahlas" hidden>🔊</button>
+    <button id="cfg" class="dk" aria-label="Nastavenia">Aa</button>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-bg" data-close></div>
+    <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Nastavenia">
+      <div class="sheet-head"><strong id="sheet-title">Nastavenia</strong><button class="ico" data-close aria-label="Zavrieť">×</button></div>
+      <div id="sheet-content"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

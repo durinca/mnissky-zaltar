@@ -1,0 +1,22 @@
+{
+  "name": "mnissky-zaltar",
+  "version": "1.0.0",
+  "description": "Mníšsky týždenný žaltár – mobile PWA",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "extract": "node tools/extract.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "fflate": "^0.8.3",
+    "puppeteer-core": "^25.11.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "private": true
+}
