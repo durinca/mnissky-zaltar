@@ -17,7 +17,7 @@ function serviceWorker(): Plugin {
       for (const f of files) { const b = bundle[f]; hash.update(f + ('code' in b ? b.code : String(b.source))); }
       for (const f of data) hash.update(readFileSync(`public/${f}`));
       const version = hash.digest('hex').slice(0, 10);
-      const src = readFileSync('src/sw.template.js', 'utf8').replace('__VERSION__', version).replace('__PRECACHE__', JSON.stringify(list));
+      const src = readFileSync('src/sw.template.js', 'utf8').replaceAll('__VERSION__', version).replaceAll('__PRECACHE__', JSON.stringify(list));
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: src });
     },
   };

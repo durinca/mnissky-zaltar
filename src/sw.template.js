@@ -1,4 +1,4 @@
-// Offline-first service worker. __VERSION__ and __PRECACHE__ are injected at build time.
+// Offline-first service worker. VERSION and PRECACHE are injected at build time (see vite.config.ts).
 const VERSION = '__VERSION__';
 const CACHE = `mz-${VERSION}`;
 const PRECACHE = __PRECACHE__;

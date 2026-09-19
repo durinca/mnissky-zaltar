@@ -39,6 +39,18 @@ for (const d of dates) {
     if (shots && (h === 'lauds' || h === 'v1' || h === 'pc') && ['2026-09-14', '2026-09-20', '2026-09-19', '2026-09-13'].includes(d)) await page.screenshot({ path: join(shots, `${d}-${h}.png`), fullPage: false });
   }
 }
+// offline: the service worker must serve every day once installed
+await page.goto('http://localhost:4173/#/2026-09-14/lauds', { waitUntil: 'domcontentloaded' });
+await page.evaluate(() => navigator.serviceWorker.ready);
+await new Promise((r) => setTimeout(r, 1500));
+await page.setOfflineMode(true);
+await page.goto('http://localhost:4173/#/2026-09-16/v', { waitUntil: 'domcontentloaded' });
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.waitForSelector('article.hour, .error', { timeout: 8000 });
+const offlineOk = await page.evaluate(() => !!document.querySelector('article.hour'));
+console.log('offline render:', offlineOk ? 'ok' : 'FAILED');
+if (!offlineOk) bad++;
+await page.setOfflineMode(false);
 console.log(`checked ${n} hours, ${bad} bad, ${errors.length} errors`);
 errors.slice(0, 10).forEach((e) => console.log(e));
 await browser.close(); server.close();
