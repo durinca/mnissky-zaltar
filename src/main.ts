@@ -1,8 +1,10 @@
 import './style.css';
 import { assemble } from './assemble';
 import { MONTH_NOM, addDays, dayInfo, formatDate, hourAt, hoursOf, HOUR_LABEL, HOUR_SHORT, isoOf, mk, parseIso, roman, type DayInfo, type HourId } from './calendar';
-import { loadPcFile, loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
+import { loadPcFile, loadProperFile, loadSeasonAnt, loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
 import { resolvePc } from './pc';
+import { resolveProper } from './season';
+import { seasonAntiphon } from './seasonant';
 import { renderBlocks, type Section } from './render';
 import { apply, load, save, type Settings } from './settings';
 import { Speaker, ttsSupported } from './tts';
@@ -32,9 +34,13 @@ function setHash(replace: boolean): void {
 }
 
 // ---------- day banner ----------
+/** seasons whose own hymns/readings/prayers/antiphons are already filled in */
+const SEASON_PROPERS = new Set<string>(['advent']);
+
 function banner(info: DayInfo, notes: string[]): HTMLElement | null {
   const parts: string[] = [];
-  if (info.season !== 'ordinary') parts.push('V tomto období sa používa týždenný žaltár; vlastné časti (antifóny, modlitby, čítania) nie sú súčasťou tejto knihy – pozri Liturgiu hodín.');
+  if (SEASON_PROPERS.has(info.season)) parts.push('Vlastné časti obdobia (hymny, čítania, prosby, modlitby) sú z Breviára; antifóny k žalmom sú z talianskeho benediktínskeho breviára, preložené do slovenčiny.');
+  else if (info.season !== 'ordinary') parts.push('V tomto období sa používa týždenný žaltár; vlastné časti (antifóny, modlitby, čítania) nie sú zatiaľ doplnené – pozri Liturgiu hodín.');
   else if (notes.length && info.dow === 0) parts.push(notes[0]);
   if (!parts.length) return null;
   return h('aside', { class: 'banner', text: parts.join(' ') });
@@ -69,12 +75,14 @@ async function show(replace = false): Promise<void> {
   const content = $('content');
   try {
     const pcP = hour === 'pc' ? resolvePc(date, info, loadPcFile).catch(() => undefined) : Promise.resolve(undefined);
-    const [day, ordinary, festa, pc] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined), pcP]);
+    const seasonP = info.season !== 'ordinary' ? resolveProper(eveningNext ? addDays(date, 1) : date, info, hour, loadProperFile).catch(() => undefined) : Promise.resolve(undefined);
+    const antP = info.season !== 'ordinary' ? loadSeasonAnt().catch(() => undefined) : Promise.resolve(undefined);
+    const [day, ordinary, festa, pc, seasonal, sAnt] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined), pcP, seasonP, antP]);
     if (my !== seq) return;
     const raw = day.hours[hour];
     if (!raw) throw new Error(`Chýba text: ${hour}`);
     const proper = info.season === 'ordinary' && info.sundayN ? ordinary[String(info.sundayN)] : undefined;
-    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both, pc });
+    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both, pc, season: seasonal, seasonAnt: sAnt ? (pos) => seasonAntiphon(sAnt, eveningNext ? addDays(date, 1) : date, info, hour, pos) : undefined });
     const r = renderBlocks(blocks, settings);
     sections = r.sections;
     const page = h('article', { class: 'hour' });

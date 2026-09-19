@@ -1,4 +1,6 @@
 import type { PcFile } from './pc';
+import type { ProperFile } from './season';
+import type { SeasonAnt } from './seasonant';
 import type { DayData, SundayProper, Unit } from './types';
 
 const cache = new Map<string, Promise<unknown>>();
@@ -27,6 +29,18 @@ export function loadPcFile(name: string): Promise<PcFile | undefined> {
   return p;
 }
 
+const spCache = new Map<string, Promise<ProperFile | undefined>>();
+export function loadProperFile(name: string): Promise<ProperFile | undefined> {
+  let p = spCache.get(name);
+  if (!p) {
+    p = fetch(new URL(`data/proper/${name}.json`, document.baseURI)).then((r) => (r.ok ? (r.json() as Promise<ProperFile>) : undefined));
+    p.catch(() => spCache.delete(name));
+    spCache.set(name, p);
+  }
+  return p;
+}
+
+export const loadSeasonAnt = () => get<SeasonAnt[]>('season-ant');
 export const loadDay = (dow: number) => get<DayData>(`day-${dow}`);
 export const loadOrdinary = () => get<Record<string, SundayProper>>('ordinary');
 export async function loadFestaInvitatory(): Promise<Unit | undefined> {

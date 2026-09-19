@@ -4,6 +4,7 @@ import type { DayInfo, HourId } from './calendar';
 import { roman } from './calendar';
 import * as C from './common';
 import type { PcSet } from './pc';
+import type { Proper } from './season';
 import type { Block, SundayProper, Unit } from './types';
 
 export interface Ctx {
@@ -17,6 +18,10 @@ export interface Ctx {
   bothNocturns?: boolean;
   /** the day's Posvätné čítanie readings (from the Breviár texts) */
   pc?: PcSet;
+  /** the season's own hymn/reading/prosby/prayer/antiphon (Advent, Christmas, Lent, Easter) */
+  season?: Proper;
+  /** psalm antiphon of the season for the pos-th psalm/canticle of this hour (Italian antiphons, translated) */
+  seasonAnt?: (pos: number) => string | undefined;
 }
 
 const SEASON_CODE: Record<string, string> = { advent: 'a', christmas: 'vi', lent: 'p', triduum: 'p', easter: 've', ordinary: '' };
@@ -166,5 +171,48 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
       out[i] = { t: 'alt', options: [u, f] };
     }
   }
+  if (ctx.seasonAnt) {
+    let pos = 0;
+    const gospel = (u: Unit) => ['benedictus', 'magnificat', 'nunc'].includes(u.body[0]?.id ?? '');
+    out.forEach((b, i) => {
+      if (b.t === 'unit' && !gospel(b)) {
+        const t = ctx.seasonAnt!(++pos);
+        if (t) out[i] = { ...b, antText: t, antOptions: undefined };
+      } else if (b.t === 'alt' && !gospel(b.options[0])) {
+        const t = ctx.seasonAnt!(++pos);
+        if (t) out[i] = { ...b, options: b.options.map((u) => ({ ...u, antText: t })) };
+      }
+    });
+  }
+  if (ctx.season) applyProper(out, ctx.season, hour);
   return out;
 }
+/** Replace the psalter's generic hymn / reading / prosby / prayer / gospel antiphon by the season's own (from the Breviár). */
+function applyProper(out: Block[], sp: Proper, hour: HourId): void {
+  const chunk4 = (ls: string[]) => Array.from({ length: Math.ceil(ls.length / 4) }, (_, i) => ({ n: String(i + 1), lines: ls.slice(i * 4, i * 4 + 4) }));
+  let hymnDone = false;
+  out.forEach((b, i) => {
+    if (b.t === 'hymn' && !b.title && sp.hymn?.length && !hymnDone) {
+      hymnDone = true;
+      out[i] = { ...b, options: [{ note: '', sk: chunk4(sp.hymn) }] };
+    } else if (b.t === 'readings' && sp.cit) {
+      out[i] = { t: 'readings', def: 0, options: [{ n: '', ref: sp.cit.ref, text: sp.cit.text.replace(/\n/g, ' '), resp: sp.resp?.length ? sp.resp.map((r) => `${r.who}/ ${r.t}`) : null }] };
+    } else if (b.t === 'unit' && sp.ant && (b.body[0]?.id === 'benedictus' || b.body[0]?.id === 'magnificat')) {
+      out[i] = { ...b, antText: sp.ant, antOptions: undefined };
+    } else if (b.t === 'prosby' && sp.prosby) {
+      const p = sp.prosby;
+      const lines = [p.intro, '', `R/ ${p.resp}`, ''];
+      for (const [a, c] of p.items) lines.push(a, c ? `― ${c}` : '', '');
+      out[i] = { ...b, options: [{ n: '', lines }], def: 0 };
+    } else if (b.t === 'prayers' && sp.prayer) {
+      out[i] = { ...b, options: [{ n: '', lines: sp.prayer.split('\n') }], def: 0 };
+    } else if (b.t === 'note' && /Modlitba je vlastná/.test(b.text) && sp.prayer) {
+      out[i] = { t: 'prayers', def: 0, options: [{ n: '', lines: sp.prayer.split('\n') }] };
+    } else if (hour === 'inv' && sp.inv && (b.t === 'unit' || b.t === 'alt')) {
+      const patch = (u: Unit): Unit => ({ ...u, antText: sp.inv });
+      out[i] = b.t === 'unit' ? patch(b) : { ...b, options: b.options.map(patch) };
+      sp = { ...sp, inv: undefined };
+    }
+  });
+}
+
