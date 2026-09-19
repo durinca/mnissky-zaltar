@@ -8,11 +8,24 @@ export type PcFile = Record<string, PcSection>;
 export interface PcSpec { file: string; c1: string; c2?: string; r1?: string; r2?: string }
 export interface PcSet { readings: { section: PcSection; resp?: PcResp }[] }
 
+const MON = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+/** solemnities / feasts of the Lord that overrule an Ordinary Time Sunday */
+const SUNDAY_FEASTS = new Set(['2/2', '6/24', '6/29', '8/6', '8/15', '9/14', '11/1', '11/9']);
 const D = ['NE', 'PO', 'UT', 'STR', 'STV', 'PI', 'SO'];
 const two = (n: number) => String(n).padStart(2, '0');
 
+export type FeastRank = 'slávnosť' | 'sviatok';
+
+/** the saint's / feast's own section prefix in pc_sv_<month>.json (e.g. "15AUG"), when the day is a solemnity or feast */
+export function feastKey(date: Date, info: DayInfo, rank?: FeastRank): { file: string; key: string } | undefined {
+  if (!rank || info.season === 'triduum') return undefined;
+  const m = date.getMonth(), d = date.getDate();
+  if (date.getDay() === 0 && !(info.season === 'ordinary' && SUNDAY_FEASTS.has(`${m + 1}/${d}`))) return undefined;
+  return { file: `pc_sv_${MON[m]}`, key: `${two(d)}${MON[m].toUpperCase()}` };
+}
+
 /** ordered candidates; the first whose first reading exists is used */
-export function pcCandidates(date: Date, info: DayInfo): PcSpec[] {
+export function pcCandidates(date: Date, info: DayInfo, rank?: FeastRank): PcSpec[] {
   const m = date.getMonth() + 1, d = date.getDate(), dow = date.getDay(), Dn = D[dow];
   const y = date.getFullYear();
   const out: PcSpec[] = [];
@@ -31,6 +44,15 @@ export function pcCandidates(date: Date, info: DayInfo): PcSpec[] {
     const trinity = new Date(east.getFullYear(), east.getMonth(), east.getDate() + 56, 12);
     if (trinity.getMonth() === date.getMonth() && trinity.getDate() === d) return [sp('troj', 'TROJ_cCIT1', 'TROJ_cRESP')];
   }
+
+  // movable solemnities / feasts of the Lord (Easter + n days)
+  const east0 = easter(y), sinceEaster = Math.round((mk(y, m - 1, d).getTime() - east0.getTime()) / 86400000);
+  const lord: Record<number, [string, string]> = { 39: ['nan', 'NAN'], 49: ['zds', 'ZDS'], 53: ['knaza', 'KNAZA'], 60: ['tk', 'TK'], 68: ['srdca', 'SRDCA'] };
+  if (lord[sinceEaster]) return [{ file: lord[sinceEaster][0], c1: `${lord[sinceEaster][1]}_cCIT1`, c2: `${lord[sinceEaster][1]}_cCIT2` }];
+
+  // the day's own solemnity / feast with its own first and second reading (pc_sv_<month>)
+  const fk = feastKey(date, info, rank);
+  if (fk) out.push({ file: fk.file, c1: `${fk.key}_cCIT1`, c2: `${fk.key}_cCIT2` });
 
   switch (info.season) {
     case 'ordinary': {
@@ -72,14 +94,21 @@ export function pcCandidates(date: Date, info: DayInfo): PcSpec[] {
   return out;
 }
 
-export async function resolvePc(date: Date, info: DayInfo, load: (file: string) => Promise<PcFile | undefined>): Promise<PcSet | undefined> {
-  for (const c of pcCandidates(date, info)) {
+export async function resolvePc(date: Date, info: DayInfo, load: (file: string) => Promise<PcFile | undefined>, rank?: FeastRank): Promise<PcSet | undefined> {
+  const fk = feastKey(date, info, rank);
+  for (const c of pcCandidates(date, info, rank)) {
     const f = await load(c.file).catch(() => undefined);
     const s1 = f?.[c.c1];
     if (!f || !s1) continue;
     const readings: PcSet['readings'] = [{ section: s1, resp: s1.resp ?? (c.r1 ? f[c.r1]?.resp : undefined) }];
     const s2 = c.c2 ? f[c.c2] : undefined;
     if (s2) readings.push({ section: s2, resp: s2.resp ?? (c.r2 ? f[c.r2]?.resp : undefined) });
+    // a feast without its own first reading (e.g. an apostle, St Benedict): weekday first reading, the saint's own second reading
+    if (fk && c.file !== fk.file) {
+      const sf = await load(fk.file).catch(() => undefined);
+      const own = sf?.[`${fk.key}_cCIT2`];
+      if (own) readings[1] = { section: own, resp: own.resp };
+    }
     return { readings };
   }
   return undefined;

@@ -47,6 +47,7 @@ export type Block =
   | { t: 'closing'; kind: string; lines: string[] }
   | { t: 'or' }
   | { t: 'pcreadings'; set: import('./pc').PcSet }
+  | { t: 'gospel'; gospel: import('./gospel').Gospel }
   | { t: 'formula'; id: string; formulas: import('./common').Formula[] }; // added by assemble()
 
 export interface DayData { day: number; hours: Record<string, Block[]> }

@@ -3,6 +3,7 @@
 import type { DayInfo, HourId } from './calendar';
 import { roman } from './calendar';
 import * as C from './common';
+import type { Gospel } from './gospel';
 import type { PcSet } from './pc';
 import type { Proper } from './season';
 import type { Block, SundayProper, Unit } from './types';
@@ -18,6 +19,8 @@ export interface Ctx {
   bothNocturns?: boolean;
   /** the day's Posvätné čítanie readings (from the Breviár texts) */
   pc?: PcSet;
+  /** the gospel of the day (Sundays, solemnities): read after the III. nocturn */
+  gospel?: Gospel;
   /** the season's own hymn/reading/prosby/prayer/antiphon (Advent, Christmas, Lent, Easter) */
   season?: Proper;
   /** psalm antiphon of the season for the pos-th psalm/canticle of this hour (Italian antiphons, translated) */
@@ -166,11 +169,23 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
     }
   };
   push(hour === 'pc' ? pickNocturns(blocks, info.psalterWeek, !!ctx.bothNocturns) : blocks);
-  if (hour === 'pc' && ctx.pc) {
-    // readings go after the psalmody/verse, before Te Deum / closing
-    let at = out.findIndex((b) => (b.t === 'hymn' && /^TE /.test(b.title)) || b.t === 'note' || (b.t === 'formula' && b.id === 'closing'));
+  if (hour === 'pc' && (ctx.pc || ctx.gospel)) {
+    // end of the nocturn that starts at `from` (or of the psalmody when there is none): next nocturn / hymn / note / closing
+    const endOf = (from: number): number => {
+      const at = out.findIndex((b, i) => i > from && (b.t === 'nokturn' || b.t === 'hymn' || b.t === 'note' || (b.t === 'formula' && b.id === 'closing')));
+      return at < 0 ? out.length : at;
+    };
+    const lastIdx = (pred: (b: Block) => boolean): number => out.reduce((r, b, i) => (pred(b) ? i : r), -1);
+    // the I./II. nocturn prayed (the last one when both) is followed by the first and second reading
+    const n12 = lastIdx((b) => b.t === 'nokturn' && b.n !== 'III');
+    let at = n12 >= 0 ? endOf(n12) : out.findIndex((b) => (b.t === 'hymn' && /^TE /.test(b.title)) || b.t === 'note' || (b.t === 'formula' && b.id === 'closing'));
     if (at < 0) at = out.length;
-    out.splice(at, 0, { t: 'pcreadings', set: ctx.pc });
+    if (ctx.pc) out.splice(at++, 0, { t: 'pcreadings', set: ctx.pc });
+    // the gospel of the day follows the III. nocturn (Sundays); without one (solemnity on a weekday) it follows the readings
+    if (ctx.gospel) {
+      const n3 = lastIdx((b) => b.t === 'nokturn' && b.n === 'III');
+      out.splice(n3 >= 0 ? endOf(n3) : at, 0, { t: 'gospel', gospel: ctx.gospel });
+    }
   }
 
   // invitatory: offer Ps 94 as an alternative to the psalm of the day

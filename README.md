@@ -45,6 +45,12 @@ Pôvodný `.docx` sa do repozitára nepridáva. Po oprave dokumentu stačí skri
 
 Texty Breviára (`public/data/pc`, `public/data/proper`) vznikajú z rozbaleného `assets/include` v `.apk`: `node tools/extract-breviar.mjs`, `node tools/extract-proper.mjs`. Antifóny: `node tools/parse-salmastro.mjs salmodia.php` → `node tools/build-season-ant.mjs`.
 
+Evanjelium dňa (po III. nokturne – nedele, slávnosti a sviatky) sa sťahuje z lc.kbs.sk do `public/data/gospel/<rok>.json`:
+
+```bash
+node tools/extract-gospel.mjs 2026 2029   # od-do rok
+```
+
 Ďalšie nástroje: `tools/dump.mjs <deň>` (prehľad štruktúry), `tools/smoke.mjs` (headless Chrome – otvorí každú hodinku),
 `tools/make-icons.mjs` (ikony).
 

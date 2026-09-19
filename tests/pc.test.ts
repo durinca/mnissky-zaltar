@@ -26,3 +26,28 @@ describe.skipIf(!HAVE)('posvätné čítanie coverage', () => {
     expect(set?.readings[0].resp?.r.length).toBeGreaterThan(0);
   });
 });
+
+describe.skipIf(!HAVE)('posvätné čítanie: solemnities and feasts', () => {
+  const at = async (d: Date, rank?: 'slávnosť' | 'sviatok') => (await resolvePc(d, dayInfo(d), load, rank))?.readings;
+  it('a solemnity has its own first and second reading (Assumption)', async () => {
+    const r = await at(mk(2026, 7, 15), 'slávnosť');
+    expect(r?.[0].section.ref).toMatch(/^Ef 1/);
+    expect(r?.[1].section.heading).toMatch(/Munificentissimus/);
+  });
+  it('a feast without its own first reading keeps the weekday one and takes the saint’s second (St Benedict)', async () => {
+    const d = mk(2026, 6, 11);
+    const weekday = await at(d);
+    const r = await at(d, 'sviatok');
+    expect(r?.[0].section.ref).toBe(weekday?.[0].section.ref);
+    expect(r?.[1].section.heading).toMatch(/Benedikt/);
+  });
+  it('movable Lord’s solemnities: Ascension, Pentecost, Corpus Christi', async () => {
+    for (const d of [mk(2026, 4, 14), mk(2026, 4, 24), mk(2026, 5, 4)]) expect((await at(d))?.length, d.toISOString()).toBe(2);
+    expect((await at(mk(2026, 4, 14)))?.[0].section.heading).not.toBe((await at(mk(2026, 4, 13)))?.[0].section.heading);
+  });
+  it('an ordinary Sunday is not overruled by a saint’s feast, a solemnity of the Lord is (1 Nov 2026)', async () => {
+    const holyFamily = mk(2026, 11, 27); // Sunday, John's feast key exists but the Sunday wins
+    expect((await at(holyFamily, 'sviatok'))?.[0].section.ref).not.toMatch(/^1 Jn/);
+    expect((await at(mk(2026, 10, 1), 'slávnosť'))?.[0].section.ref).toBeTruthy();
+  });
+});

@@ -65,7 +65,7 @@ function section(body) {
 
 let files = 0, sections = 0;
 for (const f of readdirSync(SRC)) {
-  if (!/_pc\.htm$|^(krst|vtroj|vtyz|svrod|pmb|troj|krkrala|nan|ozz|knaza|srdca|zds)\.htm$/.test(f)) continue;
+  if (!/_pc\.htm$|^(krst|vtroj|vtyz|svrod|pmb|troj|krkrala|nan|ozz|knaza|srdca|zds|tk)\.htm$|^pc_sv_[a-z]+\.htm$/.test(f)) continue;
   const html = readFileSync(new URL(f, SRC), 'utf8');
   const map = {};
   const re = /<!--\{BEGIN:([A-Za-z0-9_]+)\}-->([\s\S]*?)<!--\{END:\1\}-->/g;

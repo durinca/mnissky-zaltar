@@ -61,3 +61,22 @@ describe('assemble', () => {
     expect(JSON.stringify(f)).toContain('Pokojnú noc');
   });
 });
+
+describe('Posvätné čítanie: readings and gospel placement', () => {
+  const pc = { readings: [{ section: { heading: '', ref: 'Rim 1', source: '', title: '', lines: ['x'] } }, { section: { heading: '', ref: 'Aug', source: '', title: '', lines: ['y'] } }] };
+  const gospel = { ref: 'Mt 20, 1-16', book: 'Evanjelia podľa Matúša', text: ['z'] };
+  const order = (d: Date, bothNocturns = false) => {
+    const bs = assemble(day(d.getDay()).hours.pc, { info: dayInfo(d), hour: 'pc', bothNocturns, pc, gospel });
+    return bs.map((b) => (b.t === 'nokturn' ? `N${b.n}` : b.t === 'pcreadings' ? 'READ' : b.t === 'gospel' ? 'GOSPEL' : b.t === 'hymn' && /^TE /.test(b.title) ? 'TE' : '')).filter(Boolean);
+  };
+  it('Sunday: readings after the I./II. nocturn, gospel after the III. nocturn, then Te Deum', () => {
+    expect(order(mk(2026, 8, 20))).toEqual(['NI', 'READ', 'NIII', 'GOSPEL', 'TE', 'TE']); // 25th Sunday: psalter week 1 → I. nocturn
+    expect(order(mk(2026, 8, 27))).toEqual(['NII', 'READ', 'NIII', 'GOSPEL', 'TE', 'TE']);
+    expect(order(mk(2026, 8, 20), true)).toEqual(['NI', 'NII', 'READ', 'NIII', 'GOSPEL', 'TE', 'TE']);
+  });
+  it('weekday: no III. nocturn; the readings follow the psalmody', () => {
+    const o = order(mk(2026, 8, 21));
+    expect(o.slice(0, 2)).toEqual(['NI', 'READ']);
+    expect(o).not.toContain('NIII');
+  });
+});

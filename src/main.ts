@@ -1,7 +1,7 @@
 import './style.css';
 import { assemble } from './assemble';
 import { MONTH_NOM, addDays, dayInfo, formatDate, hourAt, hoursOf, HOUR_LABEL, HOUR_SHORT, isoOf, mk, parseIso, roman, type DayInfo, type HourId } from './calendar';
-import { loadPcFile, loadProperFile, loadSeasonAnt, loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
+import { loadGospel, loadPcFile, loadProperFile, loadSeasonAnt, loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
 import { resolvePc } from './pc';
 import { resolveProper } from './season';
 import { seasonAntiphon } from './seasonant';
@@ -74,15 +74,16 @@ async function show(replace = false): Promise<void> {
 
   const content = $('content');
   try {
-    const pcP = hour === 'pc' ? resolvePc(date, info, loadPcFile).catch(() => undefined) : Promise.resolve(undefined);
+    const gospelP = hour === 'pc' ? loadGospel(isoOf(date)).catch(() => undefined) : Promise.resolve(undefined);
+    const pcP = hour === 'pc' ? gospelP.then((g) => resolvePc(date, info, loadPcFile, g?.rank)).catch(() => undefined) : Promise.resolve(undefined);
     const seasonP = info.season !== 'ordinary' ? resolveProper(eveningNext ? addDays(date, 1) : date, info, hour, loadProperFile).catch(() => undefined) : Promise.resolve(undefined);
     const antP = info.season !== 'ordinary' ? loadSeasonAnt().catch(() => undefined) : Promise.resolve(undefined);
-    const [day, ordinary, festa, pc, seasonal, sAnt] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined), pcP, seasonP, antP]);
+    const [day, ordinary, festa, pc, gospel, seasonal, sAnt] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined), pcP, gospelP, seasonP, antP]);
     if (my !== seq) return;
     const raw = day.hours[hour];
     if (!raw) throw new Error(`Chýba text: ${hour}`);
     const proper = info.season === 'ordinary' && info.sundayN ? ordinary[String(info.sundayN)] : undefined;
-    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both, pc, season: seasonal, seasonAnt: sAnt ? (pos) => seasonAntiphon(sAnt, eveningNext ? addDays(date, 1) : date, info, hour, pos) : undefined });
+    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both, pc, gospel, season: seasonal, seasonAnt: sAnt ? (pos) => seasonAntiphon(sAnt, eveningNext ? addDays(date, 1) : date, info, hour, pos) : undefined });
     const r = renderBlocks(blocks, settings);
     sections = r.sections;
     const page = h('article', { class: 'hour' });

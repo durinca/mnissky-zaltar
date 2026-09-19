@@ -310,6 +310,19 @@ export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFrag
         b.set.readings.forEach((r, i) => { root.append(pcReadingEl(r.section, r.resp, i === 0 ? 'Prvé čítanie' : 'Druhé čítanie')); });
         break;
       }
+      case 'gospel': {
+        lastHead = '';
+        heading('Evanjelium');
+        const g = b.gospel;
+        const w = h('section', { class: 'reading pc gospel' });
+        if (g.verse) w.append(h('p', { class: 'para', 'data-tts': `${g.verse.r} ${g.verse.v}` }, rub('Aleluja verš: '), `${g.verse.r} ${g.verse.v}`));
+        w.append(h('p', { class: 'ref', text: `Čítanie zo svätého ${g.book} · ${g.ref}` }));
+        if (g.title) w.append(h('p', { class: 'pc-title', text: g.title }));
+        g.text.forEach((t) => w.append(h('p', { class: 'para', 'data-tts': t, text: t })));
+        w.append(h('p', { class: 'para' }, rub('V/ '), 'Počuli sme slovo Pánovo.'), h('p', { class: 'para' }, rub('R/ '), 'Chvála ti, Kriste.'));
+        root.append(w);
+        break;
+      }
       case 'text': lastHead = ''; if (b.lines.some((l) => l.trim())) root.append(textLines(b.lines)); break;
       case 'note': root.append(h('p', { class: 'note', text: b.text })); break;
       case 'or': case 'closing': break;

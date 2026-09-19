@@ -1,3 +1,4 @@
+import type { Gospel } from './gospel';
 import type { PcFile } from './pc';
 import type { ProperFile } from './season';
 import type { SeasonAnt } from './seasonant';
@@ -27,6 +28,19 @@ export function loadPcFile(name: string): Promise<PcFile | undefined> {
     pcCache.set(name, p);
   }
   return p;
+}
+
+const gospelCache = new Map<number, Promise<Record<string, Gospel>>>();
+/** the gospel of a Sunday / solemnity (data/gospel/<year>.json, see tools/extract-gospel.mjs); undefined when there is none */
+export async function loadGospel(iso: string): Promise<Gospel | undefined> {
+  const y = +iso.slice(0, 4);
+  let p = gospelCache.get(y);
+  if (!p) {
+    p = fetch(new URL(`data/gospel/${y}.json`, document.baseURI)).then((r) => (r.ok ? (r.json() as Promise<Record<string, Gospel>>) : {}));
+    p.catch(() => gospelCache.delete(y));
+    gospelCache.set(y, p);
+  }
+  return (await p)[iso];
 }
 
 const spCache = new Map<string, Promise<ProperFile | undefined>>();
