@@ -32,7 +32,9 @@ function norm(text) {
 const dehyph = (s) => s.replace(/(\p{Ll}{2,})-(\p{Ll}{2,})/gu, (m, a, b) => (a === b ? m : a + b));
 const flat = (t) => t.replace(/\s+/g, ' ').trim();
 
-const LINES = RAW.filter((l) => !isPageHeader(l.text)).map((l) => ({ ...l, t: flat(l.text) }));
+// editorial rubrics deliberately left out of the app
+const isDroppedRubric = (t) => /^\s*(K Nunc Dimittis|Po každej modlitbe sa vždy odpovie Amen\.)\s*$/.test(flat(t));
+const LINES = RAW.filter((l) => !isPageHeader(l.text) && !isDroppedRubric(l.text)).map((l) => ({ ...l, t: flat(l.text) }));
 
 // ---------- markers ----------
 const RN = '(I{1,3}|IV)';
