@@ -12,7 +12,8 @@ export function seasonAntiphon(all: SeasonAnt[], date: Date, info: DayInfo, hour
   if (!ora) return undefined;
   const m = date.getMonth() + 1, d = date.getDate(), dow = date.getDay();
   const md = m * 100 + d;
-  const rows = all.filter((e) => e.s === info.season && e.o.includes(ora));
+  const sKey = info.season === 'triduum' ? 'lent' : info.season;
+  const rows = all.filter((e) => e.s === sKey && e.o.includes(ora));
   const at = (pred: (e: SeasonAnt) => boolean) => rows.find((e) => pred(e) && e.cases[e.cases.length - 1] === pos)?.t;
 
   if (info.season === 'advent') {
@@ -22,6 +23,18 @@ export function seasonAntiphon(all: SeasonAnt[], date: Date, info: DayInfo, hour
     if (ora === 'terza' || ora === 'sesta' || ora === 'nona') return undefined;
     const week = md >= 1217 && dow === 0 ? 4 : Math.min(info.week ?? 1, 4);
     return at((e) => e.ev === `AV${week}` && !e.dt);
+  }
+  if (info.season === 'christmas') {
+    // solemnities/feasts (25–28 Dec, 1 and 6 Jan, Holy Family) have their own festal psalms – not the weekly psalter
+    if ([1225, 1226, 1227, 1228, 101, 106].includes(md) || (dow === 0 && md > 1225)) return undefined;
+    if (md >= 1229 && md <= 1231) return rows.find((e) => e.dt === '>=1229<=1231' && (e.cases.length ? e.cases[e.cases.length - 1] === pos : pos === 1))?.t;
+    if (m === 1 && d > 6 && (ora === 'terza' || ora === 'sesta' || ora === 'nona')) return rows.find((e) => e.dt === '>0106')?.t;
+  }
+  if (info.season === 'lent' || info.season === 'triduum') {
+    const k = info.week ?? 0;
+    const key = info.season === 'triduum' || k === 6 ? (dow === 0 ? 'PAL' : `SS${dow}`) : dow === 0 ? `QU${k}` : '';
+    if (!key) return undefined;
+    return rows.find((e) => e.ev === key && (e.cases.length ? e.cases[e.cases.length - 1] === pos : pos === 1))?.t;
   }
   return undefined;
 }

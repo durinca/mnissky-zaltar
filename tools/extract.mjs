@@ -224,8 +224,27 @@ const LA_WORDS = /(?<!\p{L})(et|est|ut|qui|quae|quod|cum|per|tu|te|sit|non|nos|t
 function lang(lines) {
   const s = lines.join(' ');
   const sk = (s.match(new RegExp(SK_CHARS.source, 'gi')) ?? []).length;
-  const la = (s.match(LA_WORDS) ?? []).length;
+  const la = (s.match(LA_WORDS) ?? []).length + (s.match(/[æǽœ]/g) ?? []).length;
+  if (sk === 0 && (s.match(/[áéíóú]/g) ?? []).length >= 3) return 'la'; // Latin hymns mark the stress on (almost) every word
   return sk > 0 && sk * 2 >= la ? 'sk' : la > sk ? 'la' : 'sk';
+}
+// A paragraph may hold a Slovak and a Latin stanza without a blank line between them: split it into 4-line
+// strophes (cut early after a line ending in "Amen", which stays with the strophe before it) when their languages differ.
+function splitMixed(p) {
+  if (p.length < 8) return [p];
+  const chunks = [];
+  for (let i = 0; i < p.length;) {
+    let j = i + 1;
+    while (j < p.length && j - i < 4 && !/Amen\.?$/i.test(p[j - 1])) j++;
+    while (j < p.length && /^Amen\.?$/i.test(p[j])) j++;
+    chunks.push(p.slice(i, j));
+    i = j;
+  }
+  const langs = chunks.map(lang);
+  if (!langs.includes('sk') || !langs.includes('la')) return [p];
+  const out = [];
+  chunks.forEach((c, k) => { if (k && langs[k] === langs[k - 1]) out[out.length - 1] = out[out.length - 1].concat(c); else out.push(c); });
+  return out;
 }
 function splitHymn(raw) {
   // join wrapped lines (leading indent 1-2 tabs, or previous line ends with hyphen)
@@ -250,6 +269,8 @@ function splitHymn(raw) {
   let pendingNote = '', lastLang = 'sk', para = [];
   const close = (L) => { if (open[L].paras.length) H[L].push(open[L]); open[L] = { note: '', paras: [] }; };
   const addPara = (p) => {
+    const parts = splitMixed(p);
+    if (parts.length > 1) { parts.forEach(addPara); return; }
     if (p.length === 1 && /^Amen\.?$/i.test(p[0])) { open[lastLang].paras.push(p); close(lastLang); return; }
     const L = lang(p);
     lastLang = L;

@@ -35,7 +35,7 @@ function setHash(replace: boolean): void {
 
 // ---------- day banner ----------
 /** seasons whose own hymns/readings/prayers/antiphons are already filled in */
-const SEASON_PROPERS = new Set<string>(['advent']);
+const SEASON_PROPERS = new Set<string>(['advent', 'christmas', 'lent']);
 
 function banner(info: DayInfo, notes: string[]): HTMLElement | null {
   const parts: string[] = [];

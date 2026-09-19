@@ -20,6 +20,7 @@ for (const [tempo, season] of Object.entries(SEASONS)) {
     const text = tr[String(uniq.get(key))];
     if (!text) { missing.push(`${season} #${uniq.get(key)} ${key.slice(0, 40)}`); continue; }
     const c = o.cond;
+    if (c.includes('this->festa')) continue; // feast-specific (saints, dedication…)
     const cases = [...c.matchAll(/case (\d+)/g)].map((m) => +m[1]);
     const ev = /evCode'\]\s*==\s*'([^']+)'/.exec(c)?.[1];
     const ora = [...new Set([...c.matchAll(/ora'\]=='(\w+)'/g)].map((m) => m[1]))];
