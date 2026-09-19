@@ -1,7 +1,8 @@
 import './style.css';
 import { assemble } from './assemble';
 import { MONTH_NOM, addDays, dayInfo, formatDate, hourAt, hoursOf, HOUR_LABEL, HOUR_SHORT, isoOf, mk, parseIso, roman, type DayInfo, type HourId } from './calendar';
-import { loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
+import { loadPcFile, loadDay, loadFestaInvitatory, loadOrdinary, prefetchAll } from './data';
+import { resolvePc } from './pc';
 import { renderBlocks, type Section } from './render';
 import { apply, load, save, type Settings } from './settings';
 import { Speaker, ttsSupported } from './tts';
@@ -67,12 +68,13 @@ async function show(replace = false): Promise<void> {
 
   const content = $('content');
   try {
-    const [day, ordinary, festa] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined)]);
+    const pcP = hour === 'pc' ? resolvePc(date, info, loadPcFile).catch(() => undefined) : Promise.resolve(undefined);
+    const [day, ordinary, festa, pc] = await Promise.all([loadDay(eveningNext ? 0 : dow), loadOrdinary(), hour === 'inv' ? loadFestaInvitatory() : Promise.resolve(undefined), pcP]);
     if (my !== seq) return;
     const raw = day.hours[hour];
     if (!raw) throw new Error(`Chýba text: ${hour}`);
     const proper = info.season === 'ordinary' && info.sundayN ? ordinary[String(info.sundayN)] : undefined;
-    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both });
+    const blocks = assemble(raw, { info, hour, proper, festaInv: festa, bothNocturns: settings.both, pc });
     const r = renderBlocks(blocks, settings);
     sections = r.sections;
     const page = h('article', { class: 'hour' });

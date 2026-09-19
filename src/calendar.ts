@@ -11,6 +11,10 @@ export interface DayInfo {
   /** Ordinary Time only: number of the Sunday on or before this day (weekdays follow their Sunday) */
   sundayN?: number;
   cycle: Cycle;
+  /** weekday cycle: II in even liturgical years, I in odd ones (the year counted from Advent) */
+  yearIandII: 'I' | 'II';
+  /** week within the season: Advent 1–4, Lent 0–6 (0 = after Ash Wednesday, 6 = Holy Week), Easter 1–8 */
+  week?: number;
   /** 1..4 – selects the I–IV variants of readings, intercessions and prayers */
   psalterWeek: 1 | 2 | 3 | 4;
   label: string;
@@ -57,6 +61,12 @@ export function cycleOf(d: Date): Cycle {
   return (['A', 'B', 'C'] as const)[s % 3];
 }
 
+export function weekdayCycle(d: Date): 'I' | 'II' {
+  const y = d.getFullYear();
+  const ly = diffDays(d, advent1(y)) >= 0 ? y + 1 : y;
+  return ly % 2 === 0 ? 'II' : 'I';
+}
+
 export function dayInfo(d: Date): DayInfo {
   const y = d.getFullYear();
   const dow = d.getDay();
@@ -75,6 +85,7 @@ export function dayInfo(d: Date): DayInfo {
   let sundayN: number | undefined;
   let psalterWeek = 1;
   let label = '';
+  let week: number | undefined;
   const dn = DAY_NAMES[dow];
   switch (season) {
     case 'ordinary': {
@@ -88,6 +99,7 @@ export function dayInfo(d: Date): DayInfo {
     }
     case 'advent': {
       const k = Math.floor(diffDays(d, adv) / 7) + 1;
+      week = k;
       psalterWeek = ((k - 1) % 4) + 1;
       label = dow === 0 ? `${k}. adventná nedeľa` : `${dn}, ${k}. adventný týždeň`;
       break;
@@ -99,6 +111,7 @@ export function dayInfo(d: Date): DayInfo {
     case 'lent': {
       const sun1 = addDays(ash, 4);
       const k = diffDays(d, sun1) < 0 ? 0 : Math.floor(diffDays(d, sun1) / 7) + 1;
+      week = k;
       psalterWeek = k === 0 ? 4 : k === 6 ? 2 : ((k - 1) % 4) + 1;
       label = diffDays(d, ash) === 0 ? 'Popolcová streda' : k === 0 ? `${dn} po Popolcovej strede` : dow === 0 ? (k === 6 ? 'Kvetná nedeľa' : `${k}. pôstna nedeľa`) : k === 6 ? `${dn} Svätého týždňa` : `${dn}, ${k}. pôstny týždeň`;
       break;
@@ -109,12 +122,13 @@ export function dayInfo(d: Date): DayInfo {
       break;
     case 'easter': {
       const k = Math.floor(diffDays(d, east) / 7) + 1;
+      week = k;
       psalterWeek = ((k - 1) % 4) + 1;
       label = diffDays(d, east) === 0 ? 'Slávnosť Zmŕtvychvstania Pána' : diffDays(d, pent) === 0 ? 'Slávnosť Zoslania Ducha Svätého' : diffDays(d, east) < 7 ? `${dn} vo veľkonočnej oktáve` : dow === 0 ? `${k}. veľkonočná nedeľa` : `${dn}, ${k}. veľkonočný týždeň`;
       break;
     }
   }
-  return { iso: isoOf(d), dow, season, sundayN, cycle: cycleOf(d), psalterWeek: psalterWeek as 1 | 2 | 3 | 4, label };
+  return { iso: isoOf(d), dow, season, sundayN, week: season === 'ordinary' ? sundayN : week, cycle: cycleOf(d), yearIandII: weekdayCycle(d), psalterWeek: psalterWeek as 1 | 2 | 3 | 4, label };
 }
 
 export function formatDate(d: Date): string {

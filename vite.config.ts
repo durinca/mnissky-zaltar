@@ -3,6 +3,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+function listData(dir: string, prefix: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? listData(`${dir}/${e.name}`, `${prefix}/${e.name}`) : [`${prefix}/${e.name}`]));
+}
+
 /** Emits sw.js with a precache list of every built asset + data file, versioned by content hash. */
 function serviceWorker(): Plugin {
   return {
@@ -10,7 +14,7 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_, bundle) {
       const files = Object.keys(bundle);
-      const data = readdirSync('public/data').map((f) => `data/${f}`);
+      const data = listData('public/data', 'data');
       const extra = ['manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
       const list = [...new Set(['./', ...files.filter((f) => f !== 'sw.js'), ...data, ...extra])];
       const hash = createHash('sha1');

@@ -1,6 +1,7 @@
 // Blocks -> DOM. Elements carrying data-tts are read aloud by the speech player.
 import { roman } from './calendar';
 import type { Formula } from './common';
+import type { PcResp, PcSection } from './pc';
 import type { Settings } from './settings';
 import type { Block, Hymn, Psalm, Stanza, Unit } from './types';
 import { h, tabs } from './ui';
@@ -200,6 +201,46 @@ function formulaEl(fs: Formula[], s: Settings): HTMLElement {
   }, 'formula-tabs');
 }
 
+// ---------- Posvätné čítanie ----------
+function pcLines(lines: string[]): HTMLElement {
+  const box = h('div', { class: 'pc-text' });
+  let para: string[] = [];
+  const flush = () => {
+    if (!para.length) return;
+    const p = h('p', { class: 'para' });
+    para.forEach((l, i) => {
+      if (i) p.append(h('br'));
+      const m = /^(\d{1,3}[a-z]?)\u00a0(.*)$/.exec(l);
+      if (m) p.append(h('span', { class: 'vn', text: m[1] }), m[2]); else p.append(l);
+    });
+    box.append(p);
+    para = [];
+  };
+  for (const l of lines) { if (!l) flush(); else para.push(l); }
+  flush();
+  box.dataset.tts = lines.filter(Boolean).map((l) => l.replace(/^\d{1,3}[a-z]?\u00a0/, '')).join('\n');
+  return box;
+}
+
+function pcReadingEl(sec: PcSection, resp: PcResp | undefined, label: string): HTMLElement {
+  const w = h('section', { class: 'reading pc' });
+  w.append(h('p', { class: 'sub2', text: label }));
+  if (sec.heading) w.append(h('p', { class: 'pc-head', text: sec.heading }));
+  const ref = [sec.ref, sec.source].filter(Boolean).join(' · ');
+  if (ref) w.append(h('p', { class: 'ref', text: ref }));
+  if (sec.title) w.append(h('p', { class: 'pc-title', text: sec.title }));
+  w.append(pcLines(sec.lines));
+  if (resp && (resp.r.length || resp.v.length)) {
+    w.append(h('p', { class: 'sub2', text: 'Responzórium' }));
+    if (resp.ref) w.append(h('p', { class: 'ref', text: resp.ref }));
+    const box = h('div', { class: 'plain' });
+    resp.r.forEach((t) => box.append(h('p', { class: 'para', 'data-tts': t.replace(/ \*/g, '') }, rub('R/ '), t)));
+    resp.v.forEach((t) => box.append(h('p', { class: 'para', 'data-tts': t.replace(/ \*/g, '') }, rub('V/ '), t)));
+    w.append(box);
+  }
+  return w;
+}
+
 // ---------- main ----------
 export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFragment; sections: Section[] } {
   const root = document.createDocumentFragment();
@@ -261,6 +302,12 @@ export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFrag
           b.memorials.forEach((m) => d.append(h('p', { class: 'para', text: m })));
           root.append(d);
         }
+        break;
+      }
+      case 'pcreadings': {
+        lastHead = '';
+        heading('Čítanie');
+        b.set.readings.forEach((r, i) => { root.append(pcReadingEl(r.section, r.resp, i === 0 ? 'Prvé čítanie' : 'Druhé čítanie')); });
         break;
       }
       case 'text': lastHead = ''; if (b.lines.some((l) => l.trim())) root.append(textLines(b.lines)); break;

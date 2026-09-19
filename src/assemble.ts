@@ -3,6 +3,7 @@
 import type { DayInfo, HourId } from './calendar';
 import { roman } from './calendar';
 import * as C from './common';
+import type { PcSet } from './pc';
 import type { Block, SundayProper, Unit } from './types';
 
 export interface Ctx {
@@ -14,6 +15,8 @@ export interface Ctx {
   festaInv?: Unit;
   /** pray both the I. and II. nocturn (default: one of them, alternating by psalter week) */
   bothNocturns?: boolean;
+  /** the day's Posvätné čítanie readings (from the Breviár texts) */
+  pc?: PcSet;
 }
 
 const SEASON_CODE: Record<string, string> = { advent: 'a', christmas: 'vi', lent: 'p', triduum: 'p', easter: 've', ordinary: '' };
@@ -61,8 +64,12 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
     const list = id === 'benedictus' ? proper.lauds : hour === 'v1' ? proper.v1 : proper.v2;
     if (!list.length) return;
     u.antOptions = list.map((x) => ({ label: x.k, text: fixAntiphon(x.text, season) }));
-    const di = list.findIndex((x) => x.k === info.cycle);
+    // Sunday I. vespers antiphons are I/II by weekday-cycle year (II in even years); lauds/II. vespers are A/B/C by Sunday cycle
+    const di = list.findIndex((x) => x.k === (hour === 'v1' ? info.yearIandII : info.cycle));
     u.antDefault = di >= 0 ? di : 0;
+    // show only the antiphon that applies this year
+    u.antText = u.antOptions[u.antDefault].text;
+    u.antOptions = undefined;
     // the "antiphon is proper" reminder is now redundant
     for (let i = out.length - 1; i >= 0 && i >= out.length - 2; i--) {
       const b = out[i];
@@ -104,7 +111,12 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
           out.push({ ...b, options: [b.options[defIndex(b.options.length, info.psalterWeek)]], def: 0 });
           break;
         case 'prosby':
-          out.push({ ...b, options: [b.options[defIndex(b.options.length, info.psalterWeek)]], def: 0 });
+          {
+            // the book sometimes prints the Our Father after the petitions; we add our own (with Latin), so cut it here
+            const o = b.options[defIndex(b.options.length, info.psalterWeek)];
+            const cut = o.lines.findIndex((l) => /^\s*Otče náš/.test(l));
+            out.push({ ...b, options: [cut >= 0 ? { ...o, lines: o.lines.slice(0, cut) } : o], def: 0 });
+          }
           if (mainHour) out.push({ t: 'formula', id: 'ourfather', formulas: [C.ourFather] });
           break;
         case 'prayers': {
@@ -138,6 +150,12 @@ export function assemble(blocks: Block[], ctx: Ctx): Block[] {
     }
   };
   push(hour === 'pc' ? pickNocturns(blocks, info.psalterWeek, !!ctx.bothNocturns) : blocks);
+  if (hour === 'pc' && ctx.pc) {
+    // readings go after the psalmody/verse, before Te Deum / closing
+    let at = out.findIndex((b) => (b.t === 'hymn' && /^TE /.test(b.title)) || b.t === 'note' || (b.t === 'formula' && b.id === 'closing'));
+    if (at < 0) at = out.length;
+    out.splice(at, 0, { t: 'pcreadings', set: ctx.pc });
+  }
 
   // invitatory: offer Ps 94 as an alternative to the psalm of the day
   if (hour === 'inv' && ctx.festaInv) {
