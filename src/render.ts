@@ -277,7 +277,7 @@ export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFrag
           const o = b.options[i];
           const w = h('div', { class: 'reading' });
           w.append(h('p', { class: 'ref', text: o.ref }), h('p', { class: 'para', 'data-tts': o.text, text: o.text }));
-          if (o.resp?.length) { w.append(h('p', { class: 'sub2', text: 'Responzórium' }), textLines(o.resp.map((l) => l.replace(/\s+/g, ' ')))); }
+          if (o.resp?.length) { w.append(h('p', { class: 'sub2', text: 'Responzórium' }), textLines(o.resp.map((l) => l.replace(/\s+/g, ' ').trim()))); }
           return w;
         }, 'reading-tabs'));
         break;
