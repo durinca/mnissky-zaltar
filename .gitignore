@@ -2,3 +2,5 @@ node_modules
 dist
 *.docx
 .DS_Store
+*.apk
+apk-extract/

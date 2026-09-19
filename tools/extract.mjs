@@ -197,14 +197,30 @@ function makePsalm(kind, hl, head, body) {
     } else lines.push(norm(x.text));
     if (x.pb && x.t) lines.push('');
   }
+  // some psalms/canticles carry the Latin text after the Slovak one: split at the first Latin strophe
+  // (only when everything from there to the end is Latin)
+  const groups = [];
+  let curG = [];
+  for (const x of lines) { if (!x.trim() || x.startsWith('#')) { if (curG.length) groups.push(curG); curG = []; } else curG.push(x); }
+  if (curG.length) groups.push(curG);
+  const gl = groups.map((g) => lang(g));
+  const firstLa = gl.indexOf('la');
+  if (firstLa > 0 && gl.slice(firstLa).every((l) => l === 'la') && !gl.slice(0, firstLa).includes('la')) {
+    const at = lines.indexOf(groups[firstLa][0]);
+    b.la = lines.slice(at).filter((x, k, arr) => !(k === arr.length - 1 && !x.trim()));
+    while (b.la.length && !b.la[0].trim()) b.la.shift();
+    while (b.la.length && !b.la[0].trim()) b.la.shift();
+    lines.length = at;
+  }
   b.lines = lines;
+  while (b.lines.length && !b.lines[b.lines.length - 1].trim()) b.lines.pop();
   while (b.lines.length && !b.lines[0].trim()) b.lines.shift();
   return b;
 }
 
 // ---------- hymns: split into SK / LA variants ----------
 const SK_CHARS = /[ľščťžôäňďĺŕ]/i;
-const LA_WORDS = /\b(et|est|ut|qui|quae|quod|cum|per|tu|te|sit|non|nos|tibi|tuis|sunt|ad|iam|sed|deus|deo|pater|patri|filio|spiritu|christum|amen)\b/gi;
+const LA_WORDS = /(?<!\p{L})(et|est|ut|qui|quae|quod|cum|per|tu|te|sit|non|nos|tibi|tuis|sunt|ad|iam|sed|deus|deo|pater|patri|filio|spiritu|christum|amen|mea|meus|meo|eius|eum|sui|suum|ecce|enim|hoc|omnes|quia|sicut|in|ex|nomen|magna|potens|dómine|dóminum|dómino)(?!\p{L})|\p{L}*(?:ibus|ónes|átem|ávit|ébit|ítur|éntur|orum|arum|æ|ǽ|ánim|ículo|íris)(?!\p{L})/giu;
 function lang(lines) {
   const s = lines.join(' ');
   const sk = (s.match(new RegExp(SK_CHARS.source, 'gi')) ?? []).length;

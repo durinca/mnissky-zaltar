@@ -40,7 +40,13 @@ function markup(line: string, p: HTMLElement): void {
   }
 }
 
-function psalmLines(lines: string[]): HTMLElement {
+/** drop the indent shared by every line (the Latin block is printed indented in the source) */
+function dedent(ls: string[]): string[] {
+  const lead = Math.min(...ls.filter((l) => l.trim() && !l.startsWith('#')).map((l) => l.length - l.replace(/^	+/, '').length));
+  return lead > 0 && Number.isFinite(lead) ? ls.map((l) => (l.startsWith('	'.repeat(lead)) ? l.slice(lead) : l)) : ls;
+}
+
+function psalmLines(lines: string[], speak = true): HTMLElement {
   const box = h('div', { class: 'psalm-text' });
   let strophe = h('div', { class: 'strophe' });
   const flush = () => { if (strophe.childNodes.length) box.append(strophe); strophe = h('div', { class: 'strophe' }); };
@@ -52,7 +58,7 @@ function psalmLines(lines: string[]): HTMLElement {
     strophe.append(p);
   }
   flush();
-  box.dataset.tts = lines.filter((l) => l.trim() && !l.startsWith('#')).map((l) => clean(l).replace(/^\d{1,3}[a-z]?\s+/, '').replace(/\(ant\.\)|[*†]/g, '').trim()).join('\n');
+  if (speak) box.dataset.tts = lines.filter((l) => l.trim() && !l.startsWith('#')).map((l) => clean(l).replace(/^\d{1,3}[a-z]?\s+/, '').replace(/\(ant\.\)|[*†]/g, '').trim()).join('\n');
   return box;
 }
 
@@ -62,7 +68,7 @@ const CANTICLE_NAMES: Record<string, string> = {
   nunc: 'Simeonov chválospev (Lk 2, 29 – 32)',
 };
 
-function psalmEl(p: Psalm): HTMLElement {
+function psalmEl(p: Psalm, s: Settings): HTMLElement {
   const box = h('section', { class: `psalm ${p.t}` });
   const head = h('div', { class: 'ph' });
   if (p.t === 'psalm') {
@@ -74,17 +80,18 @@ function psalmEl(p: Psalm): HTMLElement {
   }
   box.append(head);
   if (p.epigraph) box.append(h('p', { class: 'epi', text: p.epigraph }));
-  box.append(psalmLines(p.lines));
+  box.append(psalmLines(s.latin && p.la ? dedent(p.la) : p.lines, !(s.latin && p.la)));
+  if (s.latin && !p.la) box.append(h('p', { class: 'note', text: 'Latinský text tejto časti nie je v knihe – zobrazený je slovenský.' }));
   return box;
 }
 
-function unitEl(u: Unit): HTMLElement {
+function unitEl(u: Unit, s: Settings): HTMLElement {
   const box = h('div', { class: 'unit' });
   if (u.antOptions?.length) {
     const opts = u.antOptions;
     box.append(tabs(opts.map((o) => o.label), u.antDefault ?? 0, (i) => antEl(opts[i].text), 'ant-tabs'));
   } else if (u.antText) box.append(antEl(u.antText));
-  for (const p of u.body) box.append(psalmEl(p));
+  for (const p of u.body) box.append(psalmEl(p, s));
   if (u.again && u.antText) box.append(antEl(u.antText, { again: true }));
   return box;
 }
@@ -113,10 +120,14 @@ function hymnEl(b: Hymn, s: Settings): HTMLElement {
   box.append(tabs(b.options.map((o, i) => hymnLabel(o.note, i)), 0, (i) => {
     const o = b.options[i];
     const w = h('div');
-    if (o.sk) w.append(stanzasEl(o.sk, false));
-    if (s.latin && o.la) w.append(stanzasEl(o.la, true));
-    else if (s.latin && o.laRef) w.append(h('p', { class: 'note', text: `Latinský text: ${o.laRef}` }));
-    if (!o.sk && o.la && !s.latin) w.append(h('p', { class: 'note', text: 'Iba latinský text – zapni latinčinu v nastaveniach.' }));
+    if (s.latin) {
+      if (o.la) w.append(stanzasEl(o.la, true));
+      else {
+        if (o.sk) w.append(stanzasEl(o.sk, false));
+        w.append(h('p', { class: 'note', text: o.laRef ? `Latinský text: ${o.laRef}` : 'Latinský text tohto hymnu nie je v knihe – zobrazený je slovenský.' }));
+      }
+    } else if (o.sk) w.append(stanzasEl(o.sk, false));
+    else if (o.la) { w.append(stanzasEl(o.la, true)); w.append(h('p', { class: 'note', text: 'Slovenský text nie je v knihe.' })); }
     return w;
   }));
   return box;
@@ -179,11 +190,11 @@ function formulaEl(fs: Formula[], s: Settings): HTMLElement {
   return tabs(fs.map((f) => f.label), 0, (i) => {
     const box = h('div', { class: 'formula' });
     for (const l of fs[i].lines) {
-      const p = h('p', { class: 'fl', 'data-tts': l.sk });
+      const txt = s.latin && l.la ? l.la : l.sk;
+      const p = h('p', { class: 'fl', 'data-tts': s.latin ? undefined : l.sk });
       if (l.who) p.append(rub(l.who + '/ '));
-      p.append(l.sk);
+      p.append(txt);
       box.append(p);
-      if (s.latin && l.la) box.append(h('p', { class: 'fl la', text: (l.who ? l.who + '/ ' : '') + l.la }));
     }
     return box;
   }, 'formula-tabs');
@@ -210,13 +221,13 @@ export function renderBlocks(blocks: Block[], s: Settings): { root: DocumentFrag
         const id = b.body[0]?.id;
         if (id === 'benedictus' || id === 'magnificat' || id === 'nunc') { lastHead = ''; heading(id === 'benedictus' ? 'Benediktus' : id === 'magnificat' ? 'Magnifikat' : 'Simeonov chválospev'); }
         else headOnce('Žalmódia');
-        root.append(unitEl(b));
+        root.append(unitEl(b, s));
         break;
       }
       case 'alt': headOnce('Žalmódia'); {
         const opts = b.options;
         const label = (u: Unit) => { const p = u.body[0]; return p ? (p.t === 'psalm' ? `Žalm ${p.num}` : p.ref ?? 'Chválospev') : 'Iné'; };
-        root.append(h('p', { class: 'or', text: 'na výber' }), tabs(opts.map(label), 0, (i) => unitEl(opts[i]), 'alt-tabs'));
+        root.append(h('p', { class: 'or', text: 'na výber' }), tabs(opts.map(label), 0, (i) => unitEl(opts[i], s), 'alt-tabs'));
       } break;
       case 'gospelhead': break; // the canticle unit that follows gets the heading
       case 'readings':

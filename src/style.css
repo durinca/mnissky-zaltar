@@ -90,7 +90,7 @@ h4.sub { margin: 1.1rem 0 0.2rem; color: var(--rubric); font-family: var(--sans)
 .stanza { position: relative; margin: 0 0 0.75rem; padding-left: 1.5rem; }
 .stanza .vn { position: absolute; left: 0; top: 0.35em; min-width: 0; }
 .stanza.amen { text-align: right; text-indent: 0; padding: 0; font-style: italic; }
-.hymn-text.la { font-style: italic; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 0.7rem; margin-top: 0.4rem; }
+.hymn-text.la { font-style: normal; }
 
 /* readings / prosby / formulas */
 .ref { color: var(--rubric); font-family: var(--sans); font-weight: 700; font-size: 0.85em; margin: 0.4rem 0 0; }

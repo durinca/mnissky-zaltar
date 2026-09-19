@@ -203,7 +203,7 @@ $('cfg').addEventListener('click', () => {
   size.append(minus, sv, plus);
   box.append(row('Veľkosť písma', size));
   box.append(row('Vzhľad', segmented<Settings['theme']>([['Auto', 'auto'], ['Svetlý', 'light'], ['Tmavý', 'dark']], settings.theme, (v) => { settings.theme = v; persist(); })));
-  box.append(row('Latinčina (hymny a formuly)', segmented<boolean>([['Vypnutá', false], ['Zapnutá', true]], settings.latin, (v) => { settings.latin = v; persist(); void show(true); })));
+  box.append(row('Jazyk textu', segmented<boolean>([['Slovenčina', false], ['Latinčina', true]], settings.latin, (v) => { settings.latin = v; persist(); void show(true); })));
   box.append(row('Posvätné čítanie: nokturny', segmented<boolean>([['Jeden (podľa týždňa)', false], ['I. aj II.', true]], settings.both, (v) => { settings.both = v; persist(); void show(true); })));
   box.append(row('Nechať obrazovku zapnutú', segmented<boolean>([['Nie', false], ['Áno', true]], settings.wake, (v) => { settings.wake = v; persist(); void updateWake(); })));
   if (ttsSupported) {

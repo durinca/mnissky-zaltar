@@ -9,6 +9,8 @@ export interface Psalm {
   id?: 'benedictus' | 'magnificat' | 'nunc';
   epigraph?: string;
   lines: string[];
+  /** Latin text of the same canticle (when the book prints it) */
+  la?: string[];
 }
 export interface AntAlt { season: string; text: string }
 export interface Unit {
